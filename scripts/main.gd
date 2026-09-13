@@ -395,6 +395,10 @@ func show_home() -> void:
 			var _time: String = str(_meeting.get("time", ""))
 			var _name: String = str(_meeting.get("meeting", ""))
 			var _room: String = str(_meeting.get("room", ""))
+			_name = _name.replace("&amp;", "&")
+			_name = _name.replace("&#8217;", "'")
+			_name = _name.replace("&#8211;", "-")
+			_room = _room.replace("&amp;", "&")
 
 			if _today_text != "":
 				_today_text += "\n"
