@@ -301,7 +301,14 @@ func _section(text: String, body: String, button_text := "", url := "") -> void:
 	var box = VBoxContainer.new()
 	box.add_theme_constant_override("separation", 8)
 	panel.add_child(box)
-	var h = Label.new(); h.text = text; h.add_theme_font_size_override("font_size", 20); h.add_theme_color_override("font_color", GOLD); box.add_child(h)
+	var h = Label.new()
+	h.text = text
+	h.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	h.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.custom_minimum_size.x = 0
+	h.add_theme_font_size_override("font_size", 20)
+	h.add_theme_color_override("font_color", GOLD)
+	box.add_child(h)
 	h.add_theme_constant_override("outline_size", 5)
 	h.add_theme_color_override("font_outline_color", Color("8B2E2E"))
 	var p = Label.new(); p.text = body; p.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; p.add_theme_font_size_override("font_size", 15); p.add_theme_color_override("font_color", TEXT); box.add_child(p)
