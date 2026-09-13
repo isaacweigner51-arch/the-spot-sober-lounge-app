@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bdh12pwigwguh"
-path="res://.godot/imported/thespotfounders.png-bfbfe910fa1564303a74e8f163155fcc.ctex"
+uid="uid://dxm0v7t1l6gqm"
+path="res://.godot/imported/thespotfounderscorrected.png-8e834ddbe1edf4272b87a36478d63d70.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/thespotfounders.png"
-dest_files=["res://.godot/imported/thespotfounders.png-bfbfe910fa1564303a74e8f163155fcc.ctex"]
+source_file="res://assets/thespotfounderscorrected.png"
+dest_files=["res://.godot/imported/thespotfounderscorrected.png-8e834ddbe1edf4272b87a36478d63d70.ctex"]
 
 [params]
 
