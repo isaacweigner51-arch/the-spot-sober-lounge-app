@@ -651,25 +651,68 @@ func show_shop() -> void:
 		return
 	
 	
-func _on_shop_request_completed(_result: int, _response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
-	var data = JSON.parse_string(body.get_string_from_utf8())
-	if data is Array:
-		shop_products = data
-		var _cache_file = FileAccess.open("user://shop_cache.json", FileAccess.WRITE)
-		_cache_file.store_string(JSON.stringify(shop_products))
-		var _file = FileAccess.open("user://shop_cache.json", FileAccess.READ)
-		var _data = JSON.parse_string(_file.get_as_text())
-		if _data is Array:
-			shop_products = _data
-		show_shop()
-		for product in shop_products:
-			var product_name: String = str(product.get("name", "Unnamed Product"))
-			product_name = product_name.replace("&#8217;", "'").replace("&#8211;", "-").replace("&#8230;", "...")
-			print(product_name)
+func _on_shop_request_completed(
+	_result: int,
+	_response_code: int,
+	_headers: PackedStringArray,
+	body: PackedByteArray
+) -> void:
+	if _result != HTTPRequest.RESULT_SUCCESS:
+		print("SHOP REQUEST FAILED: ", _result)
+		return
 
-		print("SHOP PRODUCTS LOADED: ", data.size())
-	else:
-		print("SHOP API ERROR")
+	if _response_code < 200 or _response_code >= 300:
+		print("SHOP HTTP ERROR: ", _response_code)
+		return
+
+	var json := JSON.new()
+	var parse_error := json.parse(body.get_string_from_utf8())
+
+	if parse_error != OK:
+		print(
+			"SHOP JSON ERROR: ",
+			json.get_error_message(),
+			" at line ",
+			json.get_error_line()
+		)
+		return
+
+	var data = json.data
+
+	if not data is Array:
+		print("SHOP API ERROR: Response was not an array")
+		return
+
+	shop_products = data
+
+	var _cache_file := FileAccess.open(
+		"user://shop_cache.json",
+		FileAccess.WRITE
+	)
+
+	if _cache_file != null:
+		_cache_file.store_string(JSON.stringify(shop_products))
+
+	if title_label.text == "Shop":
+		show_shop()
+
+	for product in shop_products:
+		var product_name: String = str(
+			product.get("name", "Unnamed Product")
+		)
+		product_name = product_name.replace(
+			"&#8217;",
+			"'"
+		).replace(
+			"&#8211;",
+			"-"
+		).replace(
+			"&#8230;",
+			"..."
+		)
+		print(product_name)
+
+	print("SHOP PRODUCTS LOADED: ", shop_products.size())
 		
 func _load_product_image(_url: String, _target: TextureRect) -> void:
 	var _cache_path: String = "user://shop_image_" + str(_url.hash()) + ".cache"
