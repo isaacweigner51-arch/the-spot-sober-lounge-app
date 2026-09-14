@@ -278,50 +278,118 @@ func _clear(page_title: String) -> void:
 	for c in content.get_children(): c.queue_free()
 	content.add_spacer(false)
 
+func _animate_section(panel: Control) -> void:
+	await get_tree().process_frame
+
+	if not is_instance_valid(panel) or not panel.is_inside_tree():
+		return
+
+	panel.pivot_offset = panel.size / 2.0
+
+	var tween := panel.create_tween()
+	tween.set_parallel(true)
+	tween.set_trans(Tween.TRANS_QUAD)
+	tween.set_ease(Tween.EASE_OUT)
+	tween.tween_property(panel, "modulate:a", 1.0, 0.22)
+	tween.tween_property(panel, "scale", Vector2.ONE, 0.22)
+
+
 func _section(text: String, body: String, button_text := "", url := "") -> void:
-	var panel = PanelContainer.new()
+	var panel := PanelContainer.new()
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var style = StyleBoxFlat.new()
-	style.bg_color = CARD
-	style.border_color = Color("#8C6A2F")
-	style.set_border_width_all(2)
+	panel.modulate.a = 0.0
+	panel.scale = Vector2(0.98, 0.98)
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("#641A24")
+	style.border_color = Color("#D4AF37")
+	style.set_border_width_all(1)
+	style.border_width_left = 4
 	style.corner_radius_top_left = 14
 	style.corner_radius_top_right = 14
 	style.corner_radius_bottom_left = 14
 	style.corner_radius_bottom_right = 14
-	style.shadow_color = Color(0, 0, 0, 0.35)
-	style.shadow_size = 8
-	style.content_margin_left = 18
+	style.shadow_color = Color(0, 0, 0, 0.5)
+	style.shadow_size = 10
+	style.shadow_offset = Vector2(0, 3)
+	style.content_margin_left = 20
 	style.content_margin_right = 18
-	style.content_margin_top = 16
-	style.content_margin_bottom = 16
+	style.content_margin_top = 18
+	style.content_margin_bottom = 18
 	panel.add_theme_stylebox_override("panel", style)
 	content.add_child(panel)
-	var box = VBoxContainer.new()
-	box.add_theme_constant_override("separation", 8)
+	_animate_section(panel)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
 	panel.add_child(box)
-	var h = Label.new()
+
+	var h := Label.new()
 	h.text = text
 	h.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	h.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.custom_minimum_size.x = 0
-	h.add_theme_font_size_override("font_size", 20)
-	h.add_theme_color_override("font_color", GOLD)
+	h.add_theme_font_size_override("font_size", 21)
+	h.add_theme_color_override("font_color", Color("#FFE06A"))
+	h.add_theme_color_override("font_outline_color", Color("#3A080E"))
+	h.add_theme_constant_override("outline_size", 4)
 	box.add_child(h)
-	h.add_theme_constant_override("outline_size", 5)
-	h.add_theme_color_override("font_outline_color", Color("8B2E2E"))
-	var p = Label.new(); p.text = body; p.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; p.add_theme_font_size_override("font_size", 15); p.add_theme_color_override("font_color", TEXT); box.add_child(p)
+
+	var accent_line := ColorRect.new()
+	accent_line.color = Color("#D4AF37")
+	accent_line.custom_minimum_size = Vector2(0, 2)
+	accent_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(accent_line)
+
+	var p := Label.new()
+	p.text = body
+	p.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	p.custom_minimum_size.x = 0
+	p.add_theme_font_size_override("font_size", 16)
+	p.add_theme_color_override("font_color", Color("#F5E9E1"))
+	p.add_theme_constant_override("line_spacing", 4)
+	box.add_child(p)
+
 	if button_text != "":
-		var b = Button.new(); b.text = button_text; b.custom_minimum_size.y = 48; box.add_child(b)
-		var button_style = StyleBoxFlat.new()
-		button_style.bg_color = Color("4A161B")
+		var b := Button.new()
+		b.text = button_text
+		b.custom_minimum_size = Vector2(0, 52)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.add_theme_font_size_override("font_size", 16)
+		b.add_theme_color_override("font_color", Color("#FFE06A"))
+		b.add_theme_color_override("font_hover_color", Color("#FFFFFF"))
+		b.add_theme_color_override("font_pressed_color", Color("#FFFFFF"))
+		b.add_theme_color_override("font_outline_color", Color("#3A080E"))
+		b.add_theme_constant_override("outline_size", 3)
+		box.add_child(b)
+
+		var button_style := StyleBoxFlat.new()
+		button_style.bg_color = Color("#A9152D")
+		button_style.border_color = Color("#D4AF37")
+		button_style.set_border_width_all(2)
 		button_style.corner_radius_top_left = 10
 		button_style.corner_radius_top_right = 10
 		button_style.corner_radius_bottom_left = 10
 		button_style.corner_radius_bottom_right = 10
-		b.add_theme_stylebox_override("normal", button_style)  
-	
+		button_style.shadow_color = Color(0, 0, 0, 0.4)
+		button_style.shadow_size = 5
+		button_style.shadow_offset = Vector2(0, 2)
+
+		var button_hover_style := button_style.duplicate() as StyleBoxFlat
+		button_hover_style.bg_color = Color("#D21F3B")
+		button_hover_style.border_color = Color("#FFF09A")
+
+		var button_pressed_style := button_style.duplicate() as StyleBoxFlat
+		button_pressed_style.bg_color = Color("#741522")
+		button_pressed_style.shadow_size = 2
+
+		b.add_theme_stylebox_override("normal", button_style)
+		b.add_theme_stylebox_override("hover", button_hover_style)
+		b.add_theme_stylebox_override("pressed", button_pressed_style)
+		b.add_theme_stylebox_override("focus", button_hover_style)
+
 		if url == "app://shop":
 			b.pressed.connect(show_shop)
 		elif url == "app://vip":
@@ -558,7 +626,7 @@ func show_events() -> void:
 	for event_item in events_data:
 		var _event_title: String = str(event_item.get("title", {}).get("rendered", "Untitled Event"))
 		var _event_link: String = str(event_item.get("link", ""))
-		_event_title = _event_title.replace("&#8217;", "'").replace("&#8211;", "-").replace("&#8230;", "...")
+		_event_title = _event_title.replace("&#8216;", "'").replace("&#8217;", "'").replace("&#8211;", "-").replace("&#8230;", "...").replace("&amp;", "&")
 		_section(_event_title, "Tap below for full event details.", "VIEW EVENT", _event_link)
 		
 func show_vip() -> void:
@@ -567,8 +635,12 @@ func show_vip() -> void:
 	_section(
 	"VIP Benefits",
 	"The Spot VIP Membership is for people who want to support the sober community while getting extra benefits at The Spot. VIP members receive perks such as free admission to events, special member benefits, and easier access to everything The Spot offers. Membership is available in monthly or annual options.")
-	_section("Open Membership Shop", "Choose the monthly VIP option on The Spot website.", "https://thespotlounge.com/shop/")
-	
+	_section(
+	"Open Membership Shop",
+	"Choose the monthly VIP option on The Spot website.",
+	"OPEN MEMBERSHIP SHOP",
+	"https://thespotlounge.com/shop/"
+)
 
 
 func show_more() -> void:
@@ -583,18 +655,40 @@ func show_more() -> void:
 	_section("On The Spot Podcast", "Recovery-focused interviews covering a wide range of topics.", "VISIT THE SPOT", "https://www.youtube.com/@thespotsoberlounge1079")
 	_section("Website", "For current announcements, store purchases and additional information.", "THESPOTLOUNGE.COM", "https://thespotlounge.com/")
 	_section("Contact The Spot", "Email: thespotphoenix@gmail.com\nPhone: 480-249-0492")
-	var founders_button = Button.new()
-	var founders_style = StyleBoxFlat.new()
-	founders_style.bg_color = Color("#5C1F1F")
-	founders_style.border_color = Color("#D4AF37")
-	founders_style.set_border_width_all(2)
-	founders_style.corner_radius_top_left = 10
-	founders_style.corner_radius_top_right = 10
-	founders_style.corner_radius_bottom_left = 10
-	founders_style.corner_radius_bottom_right = 10
+	var founders_button := Button.new()
+	founders_button.text = "ABOUT THE FOUNDERS"
+	founders_button.custom_minimum_size = Vector2(0, 64)
+	founders_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	founders_button.add_theme_font_size_override("font_size", 20)
+	founders_button.add_theme_color_override("font_color", Color("#FFE06A"))
+	founders_button.add_theme_color_override("font_hover_color", Color("#FFFFFF"))
+	founders_button.add_theme_color_override("font_pressed_color", Color("#FFFFFF"))
+	founders_button.add_theme_color_override("font_outline_color", Color("#4A0C13"))
+	founders_button.add_theme_constant_override("outline_size", 4)
+
+	var founders_style := StyleBoxFlat.new()
+	founders_style.bg_color = Color("#C91932")
+	founders_style.border_color = Color("#FFE06A")
+	founders_style.set_border_width_all(3)
+	founders_style.corner_radius_top_left = 14
+	founders_style.corner_radius_top_right = 14
+	founders_style.corner_radius_bottom_left = 14
+	founders_style.corner_radius_bottom_right = 14
+	founders_style.shadow_color = Color(0, 0, 0, 0.55)
+	founders_style.shadow_size = 8
+	founders_style.shadow_offset = Vector2(0, 4)
+
+	var founders_hover_style := founders_style.duplicate() as StyleBoxFlat
+	founders_hover_style.bg_color = Color("#E01E3C")
+	founders_hover_style.border_color = Color("#FFF09A")
+
+	var founders_pressed_style := founders_style.duplicate() as StyleBoxFlat
+	founders_pressed_style.bg_color = Color("#8F1023")
+	founders_pressed_style.shadow_size = 3
+
 	founders_button.add_theme_stylebox_override("normal", founders_style)
-	founders_button.add_theme_color_override("font_color", Color("#D4AF37"))
-	founders_button.text = "About the Founders"
+	founders_button.add_theme_stylebox_override("hover", founders_hover_style)
+	founders_button.add_theme_stylebox_override("pressed", founders_pressed_style)
 	founders_button.pressed.connect(show_founders)
 	content.add_child(founders_button)
 func show_founders() -> void:
