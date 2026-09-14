@@ -73,6 +73,31 @@ func _load_cached_live_data() -> void:
 		if _data is Array:
 			events_data = _data
 	
+func _apply_safe_area(safe_root: MarginContainer) -> void:
+	if OS.get_name() != "iOS" and OS.get_name() != "Android":
+		return
+
+	var safe_rect: Rect2i = DisplayServer.get_display_safe_area()
+	var screen_size: Vector2i = DisplayServer.screen_get_size()
+	var viewport_size: Vector2 = get_viewport_rect().size
+
+	if screen_size.x <= 0 or screen_size.y <= 0:
+		return
+
+	var scale_x: float = viewport_size.x / float(screen_size.x)
+	var scale_y: float = viewport_size.y / float(screen_size.y)
+
+	var left_margin: int = int(round(safe_rect.position.x * scale_x))
+	var top_margin: int = int(round(safe_rect.position.y * scale_y))
+	var right_pixels: int = screen_size.x - safe_rect.position.x - safe_rect.size.x
+	var bottom_pixels: int = screen_size.y - safe_rect.position.y - safe_rect.size.y
+	var right_margin: int = int(round(max(0, right_pixels) * scale_x))
+	var bottom_margin: int = int(round(max(0, bottom_pixels) * scale_y))
+
+	safe_root.add_theme_constant_override("margin_left", left_margin)
+	safe_root.add_theme_constant_override("margin_top", top_margin)
+	safe_root.add_theme_constant_override("margin_right", right_margin)
+	safe_root.add_theme_constant_override("margin_bottom", bottom_margin)
 	
 func _build_shell() -> void:
 	var bg_image = load("res://assets/freedom.jpeg")
@@ -82,14 +107,24 @@ func _build_shell() -> void:
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
-	var root = VBoxContainer.new()
+	var safe_root := MarginContainer.new()
+	safe_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(safe_root)
+
+	var root := VBoxContainer.new()
 	root.alignment = BoxContainer.ALIGNMENT_BEGIN
-	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	root.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_theme_constant_override("separation", 0)
-	add_child(root)
+	safe_root.add_child(root)
+
+	get_viewport().size_changed.connect(
+		func(): _apply_safe_area(safe_root)
+	)
+	call_deferred("_apply_safe_area", safe_root)
 
 	var header = VBoxContainer.new()
-	header.custom_minimum_size.y = 35
+	header.custom_minimum_size.y = 14
 	header.add_theme_constant_override("separation", 2)
 	root.add_child(header)
 	
@@ -398,106 +433,170 @@ func _section(text: String, body: String, button_text := "", url := "") -> void:
 			b.pressed.connect(func(): OS.shell_open(url))
 
 func show_home() -> void:
-		_clear("Welcome Home")
-		title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		title_label.custom_minimum_size.y = 58
-		title_label.add_theme_font_size_override("font_size", 26)
-		title_label.add_theme_color_override("font_color", Color("#FFE06A"))
-		title_label.add_theme_color_override("font_outline_color", Color("#000000"))
-		title_label.add_theme_constant_override("outline_size", 6)
+	_clear("Welcome Home")
 
-		var title_style := StyleBoxFlat.new()
-		title_style.bg_color = Color("#C91932")
-		title_style.border_color = Color("#F3D36A")
-		title_style.set_border_width_all(3)
-		title_style.corner_radius_top_left = 18
-		title_style.corner_radius_top_right = 18
-		title_style.corner_radius_bottom_left = 18
-		title_style.corner_radius_bottom_right = 18
-		title_style.shadow_color = Color(0, 0, 0, 0.65)
-		title_style.shadow_size = 10
-		title_style.content_margin_left = 12
-		title_style.content_margin_right = 12
-		title_style.content_margin_top = 8
-		title_style.content_margin_bottom = 8
+	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title_label.custom_minimum_size.y = 56
+	title_label.add_theme_font_size_override("font_size", 27)
+	title_label.add_theme_color_override("font_color", Color("#FFE06A"))
+	title_label.add_theme_color_override("font_outline_color", Color("#3A080E"))
+	title_label.add_theme_constant_override("outline_size", 6)
 
-		title_label.add_theme_stylebox_override("normal", title_style)
-		
-		
-		
-		var sub = Label.new()
-		sub.text = "SOBER LOUNGE • SOBER STATE OF MIND"
-		sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		sub.add_theme_constant_override("outline_size", 8)
-		sub.add_theme_color_override("font_outline_color", Color("#7A232A"))
-		sub.add_theme_font_size_override("font_size", 16)
-		sub.add_theme_color_override("font_color", Color("#D4AF37"))
-		content.add_child(sub)
-		var logo = TextureRect.new()
-		logo.texture = load("res://assets/Spotlogo.png")
-		logo.custom_minimum_size = Vector2(300, 150)
-		logo.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
-		logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		logo.modulate = Color(1, 1, 1, 0.96)
-		content.add_child(logo)
-		content.add_spacer(false)
-	
+	var title_style := StyleBoxFlat.new()
+	title_style.bg_color = Color("#C91932")
+	title_style.border_color = Color("#FFE06A")
+	title_style.set_border_width_all(3)
+	title_style.corner_radius_top_left = 15
+	title_style.corner_radius_top_right = 15
+	title_style.corner_radius_bottom_left = 15
+	title_style.corner_radius_bottom_right = 15
+	title_style.shadow_color = Color(0, 0, 0, 0.7)
+	title_style.shadow_size = 10
+	title_style.shadow_offset = Vector2(0, 3)
+	title_style.content_margin_left = 12
+	title_style.content_margin_right = 12
+	title_style.content_margin_top = 6
+	title_style.content_margin_bottom = 6
+	title_label.add_theme_stylebox_override("normal", title_style)
+
+	var hero_panel := PanelContainer.new()
+	hero_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hero_panel.modulate.a = 0.0
+	hero_panel.scale = Vector2(0.98, 0.98)
+
+	var hero_style := StyleBoxFlat.new()
+	hero_style.bg_color = Color(0.035, 0.025, 0.025, 0.88)
+	hero_style.border_color = Color("#D4AF37")
+	hero_style.set_border_width_all(2)
+	hero_style.corner_radius_top_left = 16
+	hero_style.corner_radius_top_right = 16
+	hero_style.corner_radius_bottom_left = 16
+	hero_style.corner_radius_bottom_right = 16
+	hero_style.shadow_color = Color(0, 0, 0, 0.6)
+	hero_style.shadow_size = 10
+	hero_style.shadow_offset = Vector2(0, 3)
+	hero_style.content_margin_left = 12
+	hero_style.content_margin_right = 12
+	hero_style.content_margin_top = 10
+	hero_style.content_margin_bottom = 12
+	hero_panel.add_theme_stylebox_override("panel", hero_style)
+	content.add_child(hero_panel)
+	_animate_section(hero_panel)
+
+	var hero_box := VBoxContainer.new()
+	hero_box.add_theme_constant_override("separation", 6)
+	hero_panel.add_child(hero_box)
+
+	var sub := Label.new()
+	sub.text = "SOBER LOUNGE • SOBER STATE OF MIND"
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sub.add_theme_font_size_override("font_size", 16)
+	sub.add_theme_color_override("font_color", Color("#FFE06A"))
+	sub.add_theme_color_override("font_outline_color", Color("#6E1823"))
+	sub.add_theme_constant_override("outline_size", 5)
+	hero_box.add_child(sub)
+
+	var hero_line := ColorRect.new()
+	hero_line.color = Color("#D4AF37")
+	hero_line.custom_minimum_size = Vector2(0, 2)
+	hero_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hero_box.add_child(hero_line)
+
+	var logo := TextureRect.new()
+	logo.texture = load("res://assets/Spotlogo.png")
+	logo.custom_minimum_size = Vector2(0, 160)
+	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	logo.modulate = Color(1, 1, 1, 1)
+	hero_box.add_child(logo)
+
+	_section(
+		"More Than a Meeting",
+		"A place to connect, laugh, grow, and experience life in recovery.\n\nMeetings • Fellowship • Events • Games • Community"
+	)
+
+	var date: Dictionary = Time.get_date_dict_from_system()
+	var weekday: int = int(date.get("weekday", 0))
+	var day_names: Array[String] = [
+		"Sunday",
+		"Monday",
+		"Tuesday",
+		"Wednesday",
+		"Thursday",
+		"Friday",
+		"Saturday"
+	]
+	var today: String = day_names[weekday]
+
+	if meetings_data.is_empty():
 		_section(
-	"More Than a Meeting",
-	"A place to connect, laugh, grow, and experience life in recovery.\n\nMeetings • Fellowship • Events • Games • Community"
-)
-		var _date: Dictionary = Time.get_date_dict_from_system()
-		var _weekday: int = int(_date.get("weekday", 0))
-		var _day_names: Array[String] = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-		var _today: String = _day_names[_weekday]
+			"Today at The Spot",
+			"Loading today's meetings..."
+		)
+		return
 
-		var _today_text: String = ""
-		if meetings_data.is_empty():
-			_section("Today at The Spot", "Loading today's meetings...")
-			return
-			
-		for _meeting in meetings_data:
-			if str(_meeting.get("day", "")) != _today:
-				continue
+	var today_text := ""
 
-			var _time: String = str(_meeting.get("time", ""))
-			var _name: String = str(_meeting.get("meeting", ""))
-			var _room: String = str(_meeting.get("room", ""))
+	for meeting in meetings_data:
+		if str(meeting.get("day", "")) != today:
+			continue
 
-			if _today_text != "":
-				_today_text += "\n"
+		var meeting_time: String = str(meeting.get("time", ""))
+		var meeting_name: String = str(meeting.get("meeting", ""))
+		var meeting_room: String = str(meeting.get("room", ""))
 
-			_today_text += _time + " • " + _name + " • " + _room
+		meeting_name = meeting_name.replace("&amp;", "&")
+		meeting_name = meeting_name.replace("&#8216;", "'")
+		meeting_name = meeting_name.replace("&#8217;", "'")
+		meeting_name = meeting_name.replace("&#8211;", "-")
 
-		if _today_text == "":
-			_today_text = "No meetings scheduled today."
+		if today_text != "":
+			today_text += "\n"
 
-		_section("Today at The Spot — " + _today, _today_text)
-		var _today_card := content.get_child(content.get_child_count() - 1) as PanelContainer
-		var _today_style := StyleBoxFlat.new()
+		today_text += (
+			meeting_time
+			+ " • "
+			+ meeting_name
+			+ " • "
+			+ meeting_room
+		)
 
-		_today_style.bg_color = Color("#721E27")
-		_today_style.border_color = Color("#F3D36A")
-		_today_style.set_border_width_all(4)
-		_today_style.corner_radius_top_left = 16
-		_today_style.corner_radius_top_right = 16
-		_today_style.corner_radius_bottom_left = 16
-		_today_style.corner_radius_bottom_right = 16
-		_today_style.shadow_color = Color(0, 0, 0, 0.55)
-		_today_style.shadow_size = 12
-		_today_style.content_margin_left = 14
-		_today_style.content_margin_right = 14
-		_today_style.content_margin_top = 12
-		_today_style.content_margin_bottom = 12
+	if today_text == "":
+		today_text = "No meetings scheduled today."
 
-		_today_card.add_theme_stylebox_override("panel", _today_style)
+	_section(
+		"Today at The Spot — " + today,
+		today_text
+	)
 
-		var _today_heading := _today_card.get_child(0).get_child(0) as Label
-		_today_heading.add_theme_font_size_override("font_size", 20)
-		_today_heading.add_theme_color_override("font_color", Color("#FFE08A"))
-		_today_heading.add_theme_color_override("font_outline_color", Color("#000000"))
-		_today_heading.add_theme_constant_override("outline_size", 6)
-		var _recovery_thoughts: Array[String] = [
+	var today_card := content.get_child(
+		content.get_child_count() - 1
+	) as PanelContainer
+
+	if today_card != null:
+		var today_style := StyleBoxFlat.new()
+		today_style.bg_color = Color("#7A1F2A")
+		today_style.border_color = Color("#FFE06A")
+		today_style.set_border_width_all(3)
+		today_style.corner_radius_top_left = 16
+		today_style.corner_radius_top_right = 16
+		today_style.corner_radius_bottom_left = 16
+		today_style.corner_radius_bottom_right = 16
+		today_style.shadow_color = Color(0, 0, 0, 0.65)
+		today_style.shadow_size = 10
+		today_style.shadow_offset = Vector2(0, 3)
+		today_style.content_margin_left = 20
+		today_style.content_margin_right = 18
+		today_style.content_margin_top = 18
+		today_style.content_margin_bottom = 18
+		today_card.add_theme_stylebox_override(
+			"panel",
+			today_style
+		)
+
+	var recovery_thoughts: Array[String] = [
 		"Just for today, focus on the next right thing.",
 		"Recovery grows stronger every time you choose connection over isolation.",
 		"You don't have to have everything figured out today. Just keep moving forward, stay connected, and don't pick up.",
@@ -514,20 +613,32 @@ func show_home() -> void:
 		"Ask for help before you convince yourself you don't need it."
 	]
 
-		var _thought_key: int = (
-			int(_date.get("year", 0)) * 372
-		+ int(_date.get("month", 0)) * 31
-		+ int(_date.get("day", 0))
+	var thought_key: int = (
+		int(date.get("year", 0)) * 372
+		+ int(date.get("month", 0)) * 31
+		+ int(date.get("day", 0))
 	)
 
-		var _thought_index: int = posmod(_thought_key, _recovery_thoughts.size())
+	var thought_index: int = posmod(
+		thought_key,
+		recovery_thoughts.size()
+	)
 
-		_section("Recovery Thought", _recovery_thoughts[_thought_index])
-		_section("Visit The Spot", "4220 W Northern Ave, Suite 111\nPhoenix, Arizona", "GET DIRECTIONS", "https://www.google.com/maps/search/?api=1&query=4220+W+Northern+Ave+Suite+111+Phoenix+AZ")
-		
-		var bottom_space := Control.new()
-		bottom_space.custom_minimum_size.y = 24
-		content.add_child(bottom_space)
+	_section(
+		"Recovery Thought",
+		recovery_thoughts[thought_index]
+	)
+
+	_section(
+		"Visit The Spot",
+		"4220 W Northern Ave, Suite 111\nPhoenix, Arizona",
+		"GET DIRECTIONS",
+		"https://www.google.com/maps/search/?api=1&query=4220+W+Northern+Ave+Suite+111+Phoenix+AZ"
+	)
+
+	var bottom_space := Control.new()
+	bottom_space.custom_minimum_size.y = 24
+	content.add_child(bottom_space)
 
 func show_meetings() -> void:
 	_clear("Meetings")
@@ -745,25 +856,68 @@ func show_shop() -> void:
 		return
 	
 	
-func _on_shop_request_completed(_result: int, _response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
-	var data = JSON.parse_string(body.get_string_from_utf8())
-	if data is Array:
-		shop_products = data
-		var _cache_file = FileAccess.open("user://shop_cache.json", FileAccess.WRITE)
-		_cache_file.store_string(JSON.stringify(shop_products))
-		var _file = FileAccess.open("user://shop_cache.json", FileAccess.READ)
-		var _data = JSON.parse_string(_file.get_as_text())
-		if _data is Array:
-			shop_products = _data
-		show_shop()
-		for product in shop_products:
-			var product_name: String = str(product.get("name", "Unnamed Product"))
-			product_name = product_name.replace("&#8217;", "'").replace("&#8211;", "-").replace("&#8230;", "...")
-			print(product_name)
+func _on_shop_request_completed(
+	_result: int,
+	_response_code: int,
+	_headers: PackedStringArray,
+	body: PackedByteArray
+) -> void:
+	if _result != HTTPRequest.RESULT_SUCCESS:
+		print("SHOP REQUEST FAILED: ", _result)
+		return
 
-		print("SHOP PRODUCTS LOADED: ", data.size())
-	else:
-		print("SHOP API ERROR")
+	if _response_code < 200 or _response_code >= 300:
+		print("SHOP HTTP ERROR: ", _response_code)
+		return
+
+	var json := JSON.new()
+	var parse_error := json.parse(body.get_string_from_utf8())
+
+	if parse_error != OK:
+		print(
+			"SHOP JSON ERROR: ",
+			json.get_error_message(),
+			" at line ",
+			json.get_error_line()
+		)
+		return
+
+	var data = json.data
+
+	if not data is Array:
+		print("SHOP API ERROR: Response was not an array")
+		return
+
+	shop_products = data
+
+	var _cache_file := FileAccess.open(
+		"user://shop_cache.json",
+		FileAccess.WRITE
+	)
+
+	if _cache_file != null:
+		_cache_file.store_string(JSON.stringify(shop_products))
+
+	if title_label.text == "Shop":
+		show_shop()
+
+	for product in shop_products:
+		var product_name: String = str(
+			product.get("name", "Unnamed Product")
+		)
+		product_name = product_name.replace(
+			"&#8217;",
+			"'"
+		).replace(
+			"&#8211;",
+			"-"
+		).replace(
+			"&#8230;",
+			"..."
+		)
+		print(product_name)
+
+	print("SHOP PRODUCTS LOADED: ", shop_products.size())
 		
 func _load_product_image(_url: String, _target: TextureRect) -> void:
 	var _cache_path: String = "user://shop_image_" + str(_url.hash()) + ".cache"
