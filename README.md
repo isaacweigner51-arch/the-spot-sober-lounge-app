@@ -1,4 +1,4 @@
-# The Spot Sober Lounge App — v0.1
+# The Spot Sober Lounge App — v1.0
 
 Godot 4.7 starter mobile app for The Spot Sober Lounge.
 
