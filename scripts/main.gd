@@ -106,6 +106,13 @@ func _build_shell() -> void:
 	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
+	var background_tint := ColorRect.new()
+	background_tint.color = Color(0.02, 0.01, 0.015, 0.32)
+	background_tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	background_tint.set_anchors_and_offsets_preset(
+		Control.PRESET_FULL_RECT
+	)
+	add_child(background_tint)
 
 	var safe_root := MarginContainer.new()
 	safe_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -509,8 +516,8 @@ func show_home() -> void:
 	logo.custom_minimum_size = Vector2(0, 160)
 	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	logo.modulate = Color(1, 1, 1, 1)
 	hero_box.add_child(logo)
+	call_deferred("_animate_home_logo", logo)
 
 	_section(
 		"More Than a Meeting",
@@ -530,71 +537,238 @@ func show_home() -> void:
 	]
 	var today: String = day_names[weekday]
 
+	var today_panel := PanelContainer.new()
+	today_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	today_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	today_panel.modulate.a = 0.0
+	today_panel.scale = Vector2(0.98, 0.98)
+
+	var today_style := StyleBoxFlat.new()
+	today_style.bg_color = Color("#7A1F2A")
+	today_style.border_color = Color("#FFE06A")
+	today_style.set_border_width_all(3)
+	today_style.corner_radius_top_left = 16
+	today_style.corner_radius_top_right = 16
+	today_style.corner_radius_bottom_left = 16
+	today_style.corner_radius_bottom_right = 16
+	today_style.shadow_color = Color(0, 0, 0, 0.65)
+	today_style.shadow_size = 10
+	today_style.shadow_offset = Vector2(0, 3)
+	today_style.content_margin_left = 14
+	today_style.content_margin_right = 14
+	today_style.content_margin_top = 16
+	today_style.content_margin_bottom = 16
+	today_panel.add_theme_stylebox_override("panel", today_style)
+	content.add_child(today_panel)
+	_animate_section(today_panel)
+
+	var today_box := VBoxContainer.new()
+	today_box.add_theme_constant_override("separation", 10)
+	today_panel.add_child(today_box)
+
+	var today_title := Label.new()
+	today_title.text = "Today at The Spot — " + today
+	today_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	today_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	today_title.add_theme_font_size_override("font_size", 20)
+	today_title.add_theme_color_override("font_color", Color("#FFE06A"))
+	today_title.add_theme_color_override("font_outline_color", Color("#3A080E"))
+	today_title.add_theme_constant_override("outline_size", 4)
+	today_box.add_child(today_title)
+
+	var today_line := ColorRect.new()
+	today_line.color = Color("#D4AF37")
+	today_line.custom_minimum_size = Vector2(0, 2)
+	today_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	today_box.add_child(today_line)
+
 	if meetings_data.is_empty():
-		_section(
-			"Today at The Spot",
-			"Loading today's meetings..."
-		)
-		return
+		var loading_label := Label.new()
+		loading_label.text = "Loading today's meetings..."
+		loading_label.add_theme_font_size_override("font_size", 16)
+		loading_label.add_theme_color_override("font_color", Color("#F5E9E1"))
+		today_box.add_child(loading_label)
+	else:
+		var meetings_found := 0
 
-	var today_text := ""
+		for meeting in meetings_data:
+			if str(meeting.get("day", "")) != today:
+				continue
 
-	for meeting in meetings_data:
-		if str(meeting.get("day", "")) != today:
-			continue
+			meetings_found += 1
 
-		var meeting_time: String = str(meeting.get("time", ""))
-		var meeting_name: String = str(meeting.get("meeting", ""))
-		var meeting_room: String = str(meeting.get("room", ""))
+			var meeting_time: String = str(meeting.get("time", ""))
+			var meeting_name: String = str(meeting.get("meeting", ""))
+			var meeting_room: String = str(meeting.get("room", ""))
 
-		meeting_name = meeting_name.replace("&amp;", "&")
-		meeting_name = meeting_name.replace("&#8216;", "'")
-		meeting_name = meeting_name.replace("&#8217;", "'")
-		meeting_name = meeting_name.replace("&#8211;", "-")
+			meeting_name = meeting_name.replace("&amp;", "&")
+			meeting_name = meeting_name.replace("&#8216;", "'")
+			meeting_name = meeting_name.replace("&#8217;", "'")
+			meeting_name = meeting_name.replace("&#8211;", "-")
 
-		if today_text != "":
-			today_text += "\n"
+			meeting_room = meeting_room.replace("&amp;", "&")
+			meeting_room = meeting_room.replace("&#8216;", "'")
+			meeting_room = meeting_room.replace("&#8217;", "'")
+			meeting_room = meeting_room.replace("&#8211;", "-")
 
-		today_text += (
-			meeting_time
-			+ " • "
-			+ meeting_name
-			+ " • "
-			+ meeting_room
-		)
+			var name_parts: PackedStringArray = meeting_name.split("|", false)
+			var display_name: String = meeting_name.strip_edges()
+			var detail_text := ""
 
-	if today_text == "":
-		today_text = "No meetings scheduled today."
+			if name_parts.size() > 0:
+				display_name = name_parts[0].strip_edges()
 
-	_section(
-		"Today at The Spot — " + today,
-		today_text
+			for detail_index in range(1, name_parts.size()):
+				var detail_piece: String = name_parts[detail_index].strip_edges()
+
+				if detail_piece == "":
+					continue
+
+				if detail_text != "":
+					detail_text += " • "
+
+				detail_text += detail_piece
+
+			if meeting_room != "":
+				if detail_text != "":
+					detail_text += " • "
+
+				detail_text += meeting_room
+
+			var meeting_row := PanelContainer.new()
+			meeting_row.mouse_filter = Control.MOUSE_FILTER_PASS
+			meeting_row.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+			meeting_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+			var row_style := StyleBoxFlat.new()
+			row_style.bg_color = Color(0.20, 0.035, 0.055, 0.82)
+			row_style.border_color = Color("#D4AF37")
+			row_style.set_border_width_all(1)
+			row_style.border_width_left = 4
+			row_style.corner_radius_top_left = 10
+			row_style.corner_radius_top_right = 10
+			row_style.corner_radius_bottom_left = 10
+			row_style.corner_radius_bottom_right = 10
+			row_style.content_margin_left = 12
+			row_style.content_margin_right = 12
+			row_style.content_margin_top = 10
+			row_style.content_margin_bottom = 10
+			meeting_row.add_theme_stylebox_override("panel", row_style)
+			today_box.add_child(meeting_row)
+
+			meeting_row.mouse_entered.connect(
+				_set_home_meeting_row_hovered.bind(meeting_row, true)
+			)
+			meeting_row.mouse_exited.connect(
+				_set_home_meeting_row_hovered.bind(meeting_row, false)
+			)
+			meeting_row.gui_input.connect(
+				_on_home_meeting_row_input.bind(meeting_row)
+			)
+
+			var row_box := VBoxContainer.new()
+			row_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			row_box.add_theme_constant_override("separation", 3)
+			meeting_row.add_child(row_box)
+
+			var time_label := Label.new()
+			time_label.text = meeting_time
+			time_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			time_label.add_theme_font_size_override("font_size", 16)
+			time_label.add_theme_color_override("font_color", Color("#FFE06A"))
+			time_label.add_theme_color_override(
+				"font_outline_color",
+				Color("#3A080E")
+			)
+			time_label.add_theme_constant_override("outline_size", 3)
+			row_box.add_child(time_label)
+
+			var meeting_label := Label.new()
+			meeting_label.text = display_name
+			meeting_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			meeting_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			meeting_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			meeting_label.custom_minimum_size.x = 0
+			meeting_label.add_theme_font_size_override("font_size", 17)
+			meeting_label.add_theme_color_override(
+				"font_color",
+				Color("#FFF7F0")
+			)
+			row_box.add_child(meeting_label)
+
+			if detail_text != "":
+				var detail_label := Label.new()
+				detail_label.text = detail_text
+				detail_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				detail_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				detail_label.custom_minimum_size.x = 0
+				detail_label.add_theme_font_size_override("font_size", 13)
+				detail_label.add_theme_color_override(
+					"font_color",
+					Color("#D9C9C1")
+				)
+				row_box.add_child(detail_label)
+
+		if meetings_found == 0:
+			var empty_label := Label.new()
+			empty_label.text = "No meetings scheduled today."
+			empty_label.add_theme_font_size_override("font_size", 16)
+			empty_label.add_theme_color_override(
+				"font_color",
+				Color("#F5E9E1")
+			)
+			today_box.add_child(empty_label)
+
+	var schedule_button := Button.new()
+	schedule_button.text = "VIEW TODAY'S FULL SCHEDULE"
+	schedule_button.custom_minimum_size = Vector2(0, 50)
+	schedule_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	schedule_button.add_theme_font_size_override("font_size", 15)
+	schedule_button.add_theme_color_override(
+		"font_color",
+		Color("#FFE06A")
 	)
+	schedule_button.add_theme_color_override(
+		"font_hover_color",
+		Color.WHITE
+	)
+	schedule_button.add_theme_color_override(
+		"font_pressed_color",
+		Color.WHITE
+	)
+	schedule_button.add_theme_color_override(
+		"font_outline_color",
+		Color("#3A080E")
+	)
+	schedule_button.add_theme_constant_override("outline_size", 3)
 
-	var today_card := content.get_child(
-		content.get_child_count() - 1
-	) as PanelContainer
+	var schedule_style := StyleBoxFlat.new()
+	schedule_style.bg_color = Color("#A9152D")
+	schedule_style.border_color = Color("#FFE06A")
+	schedule_style.set_border_width_all(2)
+	schedule_style.corner_radius_top_left = 10
+	schedule_style.corner_radius_top_right = 10
+	schedule_style.corner_radius_bottom_left = 10
+	schedule_style.corner_radius_bottom_right = 10
+	schedule_style.shadow_color = Color(0, 0, 0, 0.45)
+	schedule_style.shadow_size = 5
+	schedule_style.shadow_offset = Vector2(0, 2)
 
-	if today_card != null:
-		var today_style := StyleBoxFlat.new()
-		today_style.bg_color = Color("#7A1F2A")
-		today_style.border_color = Color("#FFE06A")
-		today_style.set_border_width_all(3)
-		today_style.corner_radius_top_left = 16
-		today_style.corner_radius_top_right = 16
-		today_style.corner_radius_bottom_left = 16
-		today_style.corner_radius_bottom_right = 16
-		today_style.shadow_color = Color(0, 0, 0, 0.65)
-		today_style.shadow_size = 10
-		today_style.shadow_offset = Vector2(0, 3)
-		today_style.content_margin_left = 20
-		today_style.content_margin_right = 18
-		today_style.content_margin_top = 18
-		today_style.content_margin_bottom = 18
-		today_card.add_theme_stylebox_override(
-			"panel",
-			today_style
-		)
+	var schedule_hover := schedule_style.duplicate() as StyleBoxFlat
+	schedule_hover.bg_color = Color("#D21F3B")
+	schedule_hover.border_color = Color("#FFF09A")
+
+	var schedule_pressed := schedule_style.duplicate() as StyleBoxFlat
+	schedule_pressed.bg_color = Color("#741522")
+	schedule_pressed.shadow_size = 2
+
+	schedule_button.add_theme_stylebox_override("normal", schedule_style)
+	schedule_button.add_theme_stylebox_override("hover", schedule_hover)
+	schedule_button.add_theme_stylebox_override("pressed", schedule_pressed)
+	schedule_button.add_theme_stylebox_override("focus", schedule_hover)
+	schedule_button.pressed.connect(_open_today_meetings.bind(today))
+	today_box.add_child(schedule_button)
 
 	var recovery_thoughts: Array[String] = [
 		"Just for today, focus on the next right thing.",
@@ -639,6 +813,88 @@ func show_home() -> void:
 	var bottom_space := Control.new()
 	bottom_space.custom_minimum_size.y = 24
 	content.add_child(bottom_space)
+
+
+func _animate_home_logo(logo: TextureRect) -> void:
+	if not is_instance_valid(logo):
+		return
+
+	logo.pivot_offset = logo.size / 2.0
+	logo.modulate.a = 0.0
+	logo.scale = Vector2(0.94, 0.94)
+
+	var tween := logo.create_tween()
+	tween.set_parallel(true)
+	tween.set_trans(Tween.TRANS_QUAD)
+	tween.set_ease(Tween.EASE_OUT)
+	tween.tween_property(logo, "modulate:a", 1.0, 0.45)
+	tween.tween_property(logo, "scale", Vector2.ONE, 0.45)
+
+
+func _set_home_meeting_row_hovered(
+	row: PanelContainer,
+	hovered: bool
+) -> void:
+	if not is_instance_valid(row):
+		return
+
+	row.pivot_offset = row.size / 2.0
+
+	var target_color := Color("#FFF3E6") if hovered else Color.WHITE
+	var target_scale := Vector2(1.01, 1.01) if hovered else Vector2.ONE
+	var tween := row.create_tween()
+	tween.set_parallel(true)
+	tween.set_trans(Tween.TRANS_QUAD)
+	tween.set_ease(Tween.EASE_OUT)
+	tween.tween_property(row, "modulate", target_color, 0.12)
+	tween.tween_property(row, "scale", target_scale, 0.12)
+
+
+func _on_home_meeting_row_input(
+	event: InputEvent,
+	row: PanelContainer
+) -> void:
+	if not is_instance_valid(row):
+		return
+
+	var pressed := false
+	var released := false
+
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			pressed = event.pressed
+			released = not event.pressed
+	elif event is InputEventScreenTouch:
+		pressed = event.pressed
+		released = not event.pressed
+
+	if not pressed and not released:
+		return
+
+	row.pivot_offset = row.size / 2.0
+
+	var tween := row.create_tween()
+	tween.set_trans(Tween.TRANS_QUAD)
+	tween.set_ease(Tween.EASE_OUT)
+
+	if pressed:
+		tween.tween_property(row, "scale", Vector2(0.985, 0.985), 0.08)
+	else:
+		tween.tween_property(row, "scale", Vector2.ONE, 0.12)
+
+
+func _open_today_meetings(day_name: String) -> void:
+	selected_meeting_day = day_name
+
+	if nav.get_child_count() > 1:
+		var meetings_button := nav.get_child(1) as Button
+
+		if meetings_button != null:
+			meetings_button.button_pressed = true
+			meetings_button.pressed.emit()
+			return
+
+	show_meetings()
 
 func show_meetings() -> void:
 	_clear("Meetings")
@@ -749,55 +1005,257 @@ func show_vip() -> void:
 	"https://thespotlounge.com/shop/"
 )
 
-
 func show_more() -> void:
 	_clear("More")
-	_section("The Lounge", "Reclining couches, giant-screen TV, pool tables, dart boards and space for stepwork or just hanging out.")
+
 	_section(
-	"VIP Membership",
-	"Support The Spot and unlock VIP member benefits, including free admission to events and other member perks.",
-	"VIEW VIP MEMBERSHIP",
-	"app://vip"
-)
-	_section("On The Spot Podcast", "Recovery-focused interviews covering a wide range of topics.", "VISIT THE SPOT", "https://www.youtube.com/@thespotsoberlounge1079")
-	_section("Website", "For current announcements, store purchases and additional information.", "THESPOTLOUNGE.COM", "https://thespotlounge.com/")
-	_section("Contact The Spot", "Email: thespotphoenix@gmail.com\nPhone: 480-249-0492")
-	var founders_button := Button.new()
-	founders_button.text = "ABOUT THE FOUNDERS"
-	founders_button.custom_minimum_size = Vector2(0, 64)
-	founders_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	founders_button.add_theme_font_size_override("font_size", 20)
-	founders_button.add_theme_color_override("font_color", Color("#FFE06A"))
-	founders_button.add_theme_color_override("font_hover_color", Color("#FFFFFF"))
-	founders_button.add_theme_color_override("font_pressed_color", Color("#FFFFFF"))
-	founders_button.add_theme_color_override("font_outline_color", Color("#4A0C13"))
-	founders_button.add_theme_constant_override("outline_size", 4)
+		"The Spot Sober Lounge",
+		"More than a meeting space—a place for fellowship, connection, events, entertainment, and life in recovery."
+	)
 
-	var founders_style := StyleBoxFlat.new()
-	founders_style.bg_color = Color("#C91932")
-	founders_style.border_color = Color("#FFE06A")
-	founders_style.set_border_width_all(3)
-	founders_style.corner_radius_top_left = 14
-	founders_style.corner_radius_top_right = 14
-	founders_style.corner_radius_bottom_left = 14
-	founders_style.corner_radius_bottom_right = 14
-	founders_style.shadow_color = Color(0, 0, 0, 0.55)
-	founders_style.shadow_size = 8
-	founders_style.shadow_offset = Vector2(0, 4)
+	var menu_panel := PanelContainer.new()
+	menu_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	menu_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	menu_panel.modulate.a = 0.0
+	menu_panel.scale = Vector2(0.98, 0.98)
 
-	var founders_hover_style := founders_style.duplicate() as StyleBoxFlat
-	founders_hover_style.bg_color = Color("#E01E3C")
-	founders_hover_style.border_color = Color("#FFF09A")
+	var menu_style := StyleBoxFlat.new()
+	menu_style.bg_color = Color("#641A24")
+	menu_style.border_color = Color("#D4AF37")
+	menu_style.set_border_width_all(2)
+	menu_style.corner_radius_top_left = 16
+	menu_style.corner_radius_top_right = 16
+	menu_style.corner_radius_bottom_left = 16
+	menu_style.corner_radius_bottom_right = 16
+	menu_style.shadow_color = Color(0, 0, 0, 0.55)
+	menu_style.shadow_size = 10
+	menu_style.shadow_offset = Vector2(0, 3)
+	menu_style.content_margin_left = 14
+	menu_style.content_margin_right = 14
+	menu_style.content_margin_top = 16
+	menu_style.content_margin_bottom = 16
+	menu_panel.add_theme_stylebox_override("panel", menu_style)
 
-	var founders_pressed_style := founders_style.duplicate() as StyleBoxFlat
-	founders_pressed_style.bg_color = Color("#8F1023")
-	founders_pressed_style.shadow_size = 3
+	content.add_child(menu_panel)
+	_animate_section(menu_panel)
 
-	founders_button.add_theme_stylebox_override("normal", founders_style)
-	founders_button.add_theme_stylebox_override("hover", founders_hover_style)
-	founders_button.add_theme_stylebox_override("pressed", founders_pressed_style)
-	founders_button.pressed.connect(show_founders)
-	content.add_child(founders_button)
+	var menu_box := VBoxContainer.new()
+	menu_box.add_theme_constant_override("separation", 8)
+	menu_panel.add_child(menu_box)
+
+	var menu_title := Label.new()
+	menu_title.text = "Explore The Spot"
+	menu_title.add_theme_font_size_override("font_size", 21)
+	menu_title.add_theme_color_override("font_color", Color("#FFE06A"))
+	menu_title.add_theme_color_override(
+		"font_outline_color",
+		Color("#3A080E")
+	)
+	menu_title.add_theme_constant_override("outline_size", 4)
+	menu_box.add_child(menu_title)
+
+	var menu_line := ColorRect.new()
+	menu_line.color = Color("#D4AF37")
+	menu_line.custom_minimum_size = Vector2(0, 2)
+	menu_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	menu_box.add_child(menu_line)
+
+	menu_box.add_child(
+		_more_action_button(
+			"ABOUT THE FOUNDERS",
+			show_founders,
+			true
+		)
+	)
+
+	menu_box.add_child(
+		_more_action_button(
+			"VIP MEMBERSHIP",
+			show_vip
+		)
+	)
+
+	menu_box.add_child(
+		_more_action_button(
+			"ON THE SPOT PODCAST",
+			_open_more_link.bind(
+				"https://www.youtube.com/@thespotsoberlounge1079"
+			)
+		)
+	)
+
+	menu_box.add_child(
+		_more_action_button(
+			"VISIT OUR WEBSITE",
+			_open_more_link.bind(
+				"https://thespotlounge.com/"
+			)
+		)
+	)
+
+	menu_box.add_child(
+		_more_action_button(
+			"CONTACT & SUPPORT",
+			_open_more_link.bind(
+				"mailto:thespotphoenix@gmail.com"
+			)
+		)
+	)
+
+	menu_box.add_child(
+		_more_action_button(
+			"PRIVACY POLICY",
+			_open_more_link.bind(
+				"https://isaacweigner51-arch.github.io/the-spot-sober-lounge-app/docs/index.html"
+			)
+		)
+	)
+
+	var contact_line := HSeparator.new()
+	contact_line.modulate = Color(0.83, 0.69, 0.22, 0.55)
+	menu_box.add_child(contact_line)
+
+	var contact_info := Label.new()
+	contact_info.text = (
+		"thespotphoenix@gmail.com\n"
+		+ "480-249-0492"
+	)
+	contact_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	contact_info.add_theme_font_size_override("font_size", 14)
+	contact_info.add_theme_color_override(
+		"font_color",
+		Color("#D9C9C1")
+	)
+	contact_info.add_theme_constant_override("line_spacing", 3)
+	menu_box.add_child(contact_info)
+
+	var version_label := Label.new()
+	version_label.text = "THE SPOT SOBER LOUNGE • VERSION 1.0"
+	version_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	version_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	version_label.add_theme_font_size_override("font_size", 11)
+	version_label.add_theme_color_override(
+		"font_color",
+		Color(0.83, 0.69, 0.22, 0.70)
+	)
+	menu_box.add_child(version_label)
+
+	var bottom_space := Control.new()
+	bottom_space.custom_minimum_size.y = 24
+	content.add_child(bottom_space)
+
+
+func _more_action_button(
+	button_text: String,
+	action: Callable,
+	featured := false
+) -> Button:
+	var button := Button.new()
+	button.text = button_text + "   ›"
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.custom_minimum_size = Vector2(0, 54)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	button.add_theme_font_size_override("font_size", 15)
+	button.add_theme_color_override(
+		"font_color",
+		Color("#FFE06A")
+	)
+	button.add_theme_color_override(
+		"font_hover_color",
+		Color.WHITE
+	)
+	button.add_theme_color_override(
+		"font_pressed_color",
+		Color.WHITE
+	)
+	button.add_theme_color_override(
+		"font_outline_color",
+		Color("#3A080E")
+	)
+	button.add_theme_constant_override("outline_size", 3)
+
+	var normal_style := StyleBoxFlat.new()
+	normal_style.bg_color = (
+		Color("#C91932")
+		if featured
+		else Color("#4A161B")
+	)
+	normal_style.border_color = (
+		Color("#FFE06A")
+		if featured
+		else Color("#8C6A2F")
+	)
+	normal_style.set_border_width_all(2 if featured else 1)
+	normal_style.corner_radius_top_left = 10
+	normal_style.corner_radius_top_right = 10
+	normal_style.corner_radius_bottom_left = 10
+	normal_style.corner_radius_bottom_right = 10
+	normal_style.shadow_color = Color(0, 0, 0, 0.40)
+	normal_style.shadow_size = 5
+	normal_style.shadow_offset = Vector2(0, 2)
+	normal_style.content_margin_left = 16
+	normal_style.content_margin_right = 14
+	normal_style.content_margin_top = 8
+	normal_style.content_margin_bottom = 8
+
+	var hover_style := normal_style.duplicate() as StyleBoxFlat
+	hover_style.bg_color = (
+		Color("#E01E3C")
+		if featured
+		else Color("#721E27")
+	)
+	hover_style.border_color = Color("#FFF09A")
+
+	var pressed_style := normal_style.duplicate() as StyleBoxFlat
+	pressed_style.bg_color = Color("#8F1023")
+	pressed_style.shadow_size = 2
+
+	button.add_theme_stylebox_override("normal", normal_style)
+	button.add_theme_stylebox_override("hover", hover_style)
+	button.add_theme_stylebox_override("pressed", pressed_style)
+	button.add_theme_stylebox_override("focus", hover_style)
+
+	button.button_down.connect(
+		_animate_more_button.bind(button, true)
+	)
+	button.button_up.connect(
+		_animate_more_button.bind(button, false)
+	)
+	button.pressed.connect(action)
+
+	return button
+
+
+func _animate_more_button(
+	button: Button,
+	pressed: bool
+) -> void:
+	if not is_instance_valid(button):
+		return
+
+	button.pivot_offset = button.size / 2.0
+
+	var target_scale := (
+		Vector2(0.985, 0.985)
+		if pressed
+		else Vector2.ONE
+	)
+
+	var tween := button.create_tween()
+	tween.set_trans(Tween.TRANS_QUAD)
+	tween.set_ease(Tween.EASE_OUT)
+	tween.tween_property(
+		button,
+		"scale",
+		target_scale,
+		0.09 if pressed else 0.13
+	)
+
+
+func _open_more_link(url: String) -> void:
+	OS.shell_open(url)
+
 func show_founders() -> void:
 	_clear("About the Founders")
 	bg.modulate = Color("#3A161A")
