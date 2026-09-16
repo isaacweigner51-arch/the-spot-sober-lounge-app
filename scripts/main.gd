@@ -208,10 +208,16 @@ func _show_opening_screen() -> void:
 	)
 
 	button_holder.add_child(enter_button)
-
 	await get_tree().process_frame
+
 	photo.pivot_offset = photo.size / 2.0
+	logo_holder.pivot_offset = logo_holder.size / 2.0
+	button_holder.pivot_offset = button_holder.size / 2.0
+
 	photo.scale = Vector2(1.08, 1.08)
+	logo_holder.scale = Vector2(0.84, 0.84)
+	button_holder.scale = Vector2(0.92, 0.92)
+	logo_holder.modulate = Color(1.18, 0.88, 0.70, 0.0)
 
 	var opening := create_tween()
 	opening.set_parallel(true)
@@ -225,23 +231,45 @@ func _show_opening_screen() -> void:
 
 	var logo_entrance := create_tween()
 	logo_entrance.set_parallel(true)
-	logo_entrance.set_trans(Tween.TRANS_QUAD)
+	logo_entrance.set_trans(Tween.TRANS_BACK)
 	logo_entrance.set_ease(Tween.EASE_OUT)
-	logo_entrance.tween_property(logo_holder, "modulate:a", 1.0, 0.55)
+	logo_entrance.tween_property(
+		logo_holder,
+		"modulate",
+		Color.WHITE,
+		0.68
+	)
+	logo_entrance.tween_property(
+		logo_holder,
+		"scale",
+		Vector2.ONE,
+		0.68
+	)
 	logo_entrance.tween_property(
 		logo_holder,
 		"position:y",
 		logo_holder.position.y,
-		0.55
-	).from(logo_holder.position.y + 22.0)
+		0.68
+	).from(logo_holder.position.y + 24.0)
 
-	await get_tree().create_timer(0.20).timeout
+	await get_tree().create_timer(0.24).timeout
 
 	var button_entrance := create_tween()
 	button_entrance.set_parallel(true)
 	button_entrance.set_trans(Tween.TRANS_BACK)
 	button_entrance.set_ease(Tween.EASE_OUT)
-	button_entrance.tween_property(button_holder, "modulate:a", 1.0, 0.55)
+	button_entrance.tween_property(
+		button_holder,
+		"modulate:a",
+		1.0,
+		0.55
+	)
+	button_entrance.tween_property(
+		button_holder,
+		"scale",
+		Vector2.ONE,
+		0.55
+	)
 	button_entrance.tween_property(
 		button_holder,
 		"position:y",
@@ -249,10 +277,29 @@ func _show_opening_screen() -> void:
 		0.55
 	).from(button_holder.position.y + 28.0)
 
+	await button_entrance.finished
+
+	var button_pulse := create_tween()
+	button_pulse.set_loops()
+	button_pulse.set_trans(Tween.TRANS_SINE)
+	button_pulse.set_ease(Tween.EASE_IN_OUT)
+	button_pulse.tween_property(
+		normal_style,
+		"shadow_size",
+		19,
+		0.85
+	)
+	button_pulse.tween_property(
+		normal_style,
+		"shadow_size",
+		11,
+		0.85
+	)
+
 	await enter_button.pressed
+	button_pulse.kill()
 	enter_button.disabled = true
 	Input.vibrate_handheld(60)
-
 	var flash := ColorRect.new()
 	flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	flash.color = Color("#F5C542")
@@ -955,9 +1002,63 @@ func show_home() -> void:
 	call_deferred("_animate_home_logo", logo)
 
 	_section(
-		"More Than a Meeting",
+		"MORE THAN A MEETING",
 		"A place to connect, laugh, grow, and experience life in recovery.\n\nMeetings • Fellowship • Events • Games • Community"
 	)
+
+	var more_feature := content.get_child(
+		content.get_child_count() - 1
+	) as PanelContainer
+
+	var more_feature_style := StyleBoxFlat.new()
+	more_feature_style.bg_color = Color("#4A0612")
+	more_feature_style.border_color = Color("#FFE36E")
+	more_feature_style.set_border_width_all(2)
+	more_feature_style.border_width_left = 7
+	more_feature_style.set_corner_radius_all(16)
+	more_feature_style.shadow_color = Color(0, 0, 0, 0.75)
+	more_feature_style.shadow_size = 12
+	more_feature_style.shadow_offset = Vector2(0, 4)
+	more_feature_style.content_margin_left = 18
+	more_feature_style.content_margin_right = 16
+	more_feature_style.content_margin_top = 15
+	more_feature_style.content_margin_bottom = 16
+	more_feature.add_theme_stylebox_override(
+		"panel",
+		more_feature_style
+	)
+
+	var more_feature_box := more_feature.get_child(0) as VBoxContainer
+	var more_feature_title := more_feature_box.get_child(0) as Label
+	var more_feature_line := more_feature_box.get_child(1) as ColorRect
+	var more_feature_body := more_feature_box.get_child(2) as Label
+
+	var feature_eyebrow := Label.new()
+	feature_eyebrow.text = "THE SPOT DIFFERENCE"
+	feature_eyebrow.add_theme_font_size_override("font_size", 11)
+	feature_eyebrow.add_theme_color_override(
+		"font_color",
+		Color("#E94B5F")
+	)
+	more_feature_box.add_child(feature_eyebrow)
+	more_feature_box.move_child(feature_eyebrow, 0)
+
+	more_feature_title.add_theme_font_size_override("font_size", 25)
+	more_feature_title.add_theme_color_override(
+		"font_color",
+		Color("#FFF0B5")
+	)
+	more_feature_title.add_theme_constant_override("outline_size", 4)
+
+	more_feature_line.color = Color("#E30620")
+	more_feature_line.custom_minimum_size.y = 3
+
+	more_feature_body.add_theme_font_size_override("font_size", 16)
+	more_feature_body.add_theme_color_override(
+		"font_color",
+		Color("#FFF7F0")
+	)
+	more_feature_body.add_theme_constant_override("line_spacing", 5)
 
 	var date: Dictionary = Time.get_date_dict_from_system()
 	var weekday: int = int(date.get("weekday", 0))
@@ -1239,15 +1340,156 @@ func show_home() -> void:
 	)
 
 	_section(
-		"Recovery Thought",
+		"RECOVERY THOUGHT",
 		recovery_thoughts[thought_index]
 	)
 
+	var recovery_feature := content.get_child(
+		content.get_child_count() - 1
+	) as PanelContainer
+
+	var recovery_style := StyleBoxFlat.new()
+	recovery_style.bg_color = Color("#651126")
+	recovery_style.border_color = Color("#FFE36E")
+	recovery_style.set_border_width_all(2)
+	recovery_style.border_width_left = 7
+	recovery_style.set_corner_radius_all(16)
+	recovery_style.shadow_color = Color(0, 0, 0, 0.72)
+	recovery_style.shadow_size = 11
+	recovery_style.shadow_offset = Vector2(0, 4)
+	recovery_style.content_margin_left = 18
+	recovery_style.content_margin_right = 16
+	recovery_style.content_margin_top = 15
+	recovery_style.content_margin_bottom = 17
+	recovery_feature.add_theme_stylebox_override(
+		"panel",
+		recovery_style
+	)
+
+	var recovery_box := recovery_feature.get_child(0) as VBoxContainer
+	var recovery_title := recovery_box.get_child(0) as Label
+	var recovery_line := recovery_box.get_child(1) as ColorRect
+	var recovery_body := recovery_box.get_child(2) as Label
+
+	var recovery_eyebrow := Label.new()
+	recovery_eyebrow.text = "JUST FOR TODAY"
+	recovery_eyebrow.add_theme_font_size_override("font_size", 11)
+	recovery_eyebrow.add_theme_color_override(
+		"font_color",
+		Color("#E94B5F")
+	)
+	recovery_box.add_child(recovery_eyebrow)
+	recovery_box.move_child(recovery_eyebrow, 0)
+
+	recovery_title.add_theme_font_size_override("font_size", 25)
+	recovery_title.add_theme_color_override(
+		"font_color",
+		Color("#FFF0B5")
+	)
+	recovery_title.add_theme_constant_override("outline_size", 4)
+
+	recovery_line.color = Color("#FFE36E")
+	recovery_line.custom_minimum_size.y = 2
+
+	recovery_body.add_theme_font_size_override("font_size", 18)
+	recovery_body.add_theme_color_override(
+		"font_color",
+		Color("#FFF7F0")
+	)
+	recovery_body.add_theme_constant_override("line_spacing", 6)
+
 	_section(
-		"Visit The Spot",
+		"VISIT THE SPOT",
 		"4220 W Northern Ave, Suite 111\nPhoenix, Arizona",
 		"GET DIRECTIONS",
 		"https://www.google.com/maps/search/?api=1&query=4220+W+Northern+Ave+Suite+111+Phoenix+AZ"
+	)
+
+	var visit_feature := content.get_child(
+		content.get_child_count() - 1
+	) as PanelContainer
+
+	var visit_style := StyleBoxFlat.new()
+	visit_style.bg_color = Color("#3F0710")
+	visit_style.border_color = Color("#FFE36E")
+	visit_style.set_border_width_all(2)
+	visit_style.border_width_left = 7
+	visit_style.set_corner_radius_all(16)
+	visit_style.shadow_color = Color(0, 0, 0, 0.72)
+	visit_style.shadow_size = 11
+	visit_style.shadow_offset = Vector2(0, 4)
+	visit_style.content_margin_left = 18
+	visit_style.content_margin_right = 16
+	visit_style.content_margin_top = 15
+	visit_style.content_margin_bottom = 17
+	visit_feature.add_theme_stylebox_override(
+		"panel",
+		visit_style
+	)
+
+	var visit_box := visit_feature.get_child(0) as VBoxContainer
+	var visit_title := visit_box.get_child(0) as Label
+	var visit_line := visit_box.get_child(1) as ColorRect
+	var visit_body := visit_box.get_child(2) as Label
+	var visit_button := visit_box.get_child(3) as Button
+
+	var visit_eyebrow := Label.new()
+	visit_eyebrow.text = "COME SEE US"
+	visit_eyebrow.add_theme_font_size_override("font_size", 11)
+	visit_eyebrow.add_theme_color_override(
+		"font_color",
+		Color("#E94B5F")
+	)
+	visit_box.add_child(visit_eyebrow)
+	visit_box.move_child(visit_eyebrow, 0)
+
+	visit_title.add_theme_font_size_override("font_size", 25)
+	visit_title.add_theme_color_override(
+		"font_color",
+		Color("#FFF0B5")
+	)
+	visit_title.add_theme_constant_override("outline_size", 4)
+
+	visit_line.color = Color("#E30620")
+	visit_line.custom_minimum_size.y = 3
+
+	visit_body.add_theme_font_size_override("font_size", 17)
+	visit_body.add_theme_color_override(
+		"font_color",
+		Color("#FFF7F0")
+	)
+	visit_body.add_theme_constant_override("line_spacing", 5)
+
+	visit_button.custom_minimum_size.y = 56
+	visit_button.add_theme_font_size_override("font_size", 17)
+	visit_button.add_theme_color_override(
+		"font_color",
+		Color("#FFF0B5")
+	)
+
+	var visit_button_style := StyleBoxFlat.new()
+	visit_button_style.bg_color = Color("#E30620")
+	visit_button_style.border_color = Color("#FFE36E")
+	visit_button_style.set_border_width_all(2)
+	visit_button_style.set_corner_radius_all(12)
+	visit_button_style.shadow_color = Color(0, 0, 0, 0.50)
+	visit_button_style.shadow_size = 6
+	visit_button_style.shadow_offset = Vector2(0, 3)
+	visit_button.add_theme_stylebox_override(
+		"normal",
+		visit_button_style
+	)
+
+	var visit_hover := visit_button_style.duplicate() as StyleBoxFlat
+	visit_hover.bg_color = Color("#FF1733")
+	visit_button.add_theme_stylebox_override("hover", visit_hover)
+	visit_button.add_theme_stylebox_override("focus", visit_hover)
+
+	var visit_pressed := visit_button_style.duplicate() as StyleBoxFlat
+	visit_pressed.bg_color = Color("#9E071A")
+	visit_button.add_theme_stylebox_override(
+		"pressed",
+		visit_pressed
 	)
 
 	var bottom_space := Control.new()
@@ -1549,6 +1791,7 @@ func show_meetings() -> void:
 	title_label.visible = false
 	main_scroll.scroll_vertical = 0
 
+
 	var days: Array[String] = [
 		"Sunday",
 		"Monday",
@@ -1783,6 +2026,7 @@ func show_meetings() -> void:
 			detail_parts.append(meeting_room)
 
 		var meeting_panel := PanelContainer.new()
+		meeting_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		meeting_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		meeting_panel.custom_minimum_size.y = 94
 		meeting_panel.modulate.a = 0.0
@@ -1805,10 +2049,12 @@ func show_meetings() -> void:
 		_animate_section(meeting_panel)
 
 		var meeting_row := HBoxContainer.new()
+		meeting_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		meeting_row.add_theme_constant_override("separation", 14)
 		meeting_panel.add_child(meeting_row)
 
 		var time_badge := PanelContainer.new()
+		time_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		time_badge.custom_minimum_size = Vector2(72, 68)
 		var time_style := StyleBoxFlat.new()
 		time_style.bg_color = Color("#FFD768")
@@ -1826,6 +2072,7 @@ func show_meetings() -> void:
 		formatted_time = formatted_time.replace("PM", "\nPM")
 
 		var time_label := Label.new()
+		time_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		time_label.text = formatted_time
 		time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		time_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -1834,12 +2081,14 @@ func show_meetings() -> void:
 		time_badge.add_child(time_label)
 
 		var meeting_info := VBoxContainer.new()
+		meeting_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		meeting_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		meeting_info.alignment = BoxContainer.ALIGNMENT_CENTER
 		meeting_info.add_theme_constant_override("separation", 5)
 		meeting_row.add_child(meeting_info)
 
 		var name_label := Label.new()
+		name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		name_label.text = display_name.to_upper()
 		name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1850,6 +2099,7 @@ func show_meetings() -> void:
 
 		if not detail_parts.is_empty():
 			var detail_label := Label.new()
+			detail_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			detail_label.text = " • ".join(detail_parts)
 			detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			detail_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1902,7 +2152,99 @@ func show_events() -> void:
 		var _event_title: String = str(event_item.get("title", {}).get("rendered", "Untitled Event"))
 		var _event_link: String = str(event_item.get("link", ""))
 		_event_title = _event_title.replace("&#8216;", "'").replace("&#8217;", "'").replace("&#8211;", "-").replace("&#8230;", "...").replace("&amp;", "&")
-		_section(_event_title, "Tap below for full event details.", "VIEW EVENT", _event_link)
+		_section(
+			_event_title,
+			"See dates, times, and full event details on The Spot website.",
+			"VIEW EVENT",
+			_event_link
+		)
+
+		var event_card := content.get_child(
+			content.get_child_count() - 1
+		) as PanelContainer
+
+		var event_style := StyleBoxFlat.new()
+		event_style.bg_color = Color("#4A0612")
+		event_style.border_color = Color("#FFE36E")
+		event_style.set_border_width_all(2)
+		event_style.border_width_left = 7
+		event_style.set_corner_radius_all(16)
+		event_style.shadow_color = Color(0, 0, 0, 0.72)
+		event_style.shadow_size = 11
+		event_style.shadow_offset = Vector2(0, 4)
+		event_style.content_margin_left = 18
+		event_style.content_margin_right = 16
+		event_style.content_margin_top = 15
+		event_style.content_margin_bottom = 17
+		event_card.add_theme_stylebox_override(
+			"panel",
+			event_style
+		)
+
+		var event_box := event_card.get_child(0) as VBoxContainer
+		var event_title := event_box.get_child(0) as Label
+		var event_line := event_box.get_child(1) as ColorRect
+		var event_body := event_box.get_child(2) as Label
+		var event_button := event_box.get_child(3) as Button
+
+		var event_eyebrow := Label.new()
+		event_eyebrow.text = "UPCOMING AT THE SPOT"
+		event_eyebrow.add_theme_font_size_override("font_size", 11)
+		event_eyebrow.add_theme_color_override(
+			"font_color",
+			Color("#E94B5F")
+		)
+		event_box.add_child(event_eyebrow)
+		event_box.move_child(event_eyebrow, 0)
+
+		event_title.add_theme_font_size_override("font_size", 23)
+		event_title.add_theme_color_override(
+			"font_color",
+			Color("#FFF0B5")
+		)
+		event_title.add_theme_constant_override("outline_size", 4)
+
+		event_line.color = Color("#E30620")
+		event_line.custom_minimum_size.y = 3
+
+		event_body.add_theme_font_size_override("font_size", 15)
+		event_body.add_theme_color_override(
+			"font_color",
+			Color("#FFF7F0")
+		)
+		event_body.add_theme_constant_override("line_spacing", 5)
+
+		event_button.custom_minimum_size.y = 54
+		event_button.add_theme_font_size_override("font_size", 16)
+		event_button.add_theme_color_override(
+			"font_color",
+			Color("#FFF0B5")
+		)
+
+		var event_button_style := StyleBoxFlat.new()
+		event_button_style.bg_color = Color("#E30620")
+		event_button_style.border_color = Color("#FFE36E")
+		event_button_style.set_border_width_all(2)
+		event_button_style.set_corner_radius_all(12)
+		event_button_style.shadow_color = Color(0, 0, 0, 0.50)
+		event_button_style.shadow_size = 6
+		event_button_style.shadow_offset = Vector2(0, 3)
+		event_button.add_theme_stylebox_override(
+			"normal",
+			event_button_style
+		)
+
+		var event_hover := event_button_style.duplicate() as StyleBoxFlat
+		event_hover.bg_color = Color("#FF1733")
+		event_button.add_theme_stylebox_override("hover", event_hover)
+		event_button.add_theme_stylebox_override("focus", event_hover)
+
+		var event_pressed := event_button_style.duplicate() as StyleBoxFlat
+		event_pressed.bg_color = Color("#9E071A")
+		event_button.add_theme_stylebox_override(
+			"pressed",
+			event_pressed
+		)
 		
 func show_vip() -> void:
 	_clear("VIP MEMBERSHP")
@@ -1917,9 +2259,13 @@ func show_vip() -> void:
 	"https://thespotlounge.com/shop/"
 )
 
+
+
+
 func show_more() -> void:
-	_clear("")
+	_clear("More")
 	title_label.visible = false
+	main_scroll.scroll_vertical = 0
 	_add_page_header(
 		"MORE",
 		"Explore everything The Spot offers.",
@@ -1927,11 +2273,52 @@ func show_more() -> void:
 		"EXPLORE"
 	)
 
+	# Branded introduction card.
 	_section(
-		"The Spot Sober Lounge",
-		"More than a meeting space—a place for fellowship, connection, events, entertainment, and life in recovery."
+		"MORE THAN A MEETING",
+		"A place for fellowship, connection, events, entertainment, and life in recovery."
 	)
 
+	var intro_card := content.get_child(
+		content.get_child_count() - 1
+	) as PanelContainer
+
+	var intro_style := StyleBoxFlat.new()
+	intro_style.bg_color = Color("#4A0612")
+	intro_style.border_color = Color("#FFE36E")
+	intro_style.set_border_width_all(2)
+	intro_style.border_width_left = 7
+	intro_style.set_corner_radius_all(16)
+	intro_style.shadow_color = Color(0, 0, 0, 0.72)
+	intro_style.shadow_size = 11
+	intro_style.shadow_offset = Vector2(0, 4)
+	intro_style.content_margin_left = 18
+	intro_style.content_margin_right = 16
+	intro_style.content_margin_top = 15
+	intro_style.content_margin_bottom = 17
+	intro_card.add_theme_stylebox_override("panel", intro_style)
+
+	var intro_box := intro_card.get_child(0) as VBoxContainer
+	var intro_title := intro_box.get_child(0) as Label
+	var intro_line := intro_box.get_child(1) as ColorRect
+	var intro_body := intro_box.get_child(2) as Label
+
+	var intro_eyebrow := Label.new()
+	intro_eyebrow.text = "WELCOME TO THE SPOT"
+	intro_eyebrow.add_theme_font_size_override("font_size", 11)
+	intro_eyebrow.add_theme_color_override("font_color", Color("#E94B5F"))
+	intro_box.add_child(intro_eyebrow)
+	intro_box.move_child(intro_eyebrow, 0)
+
+	intro_title.add_theme_font_size_override("font_size", 24)
+	intro_title.add_theme_color_override("font_color", Color("#FFF0B5"))
+	intro_line.color = Color("#E30620")
+	intro_line.custom_minimum_size.y = 3
+	intro_body.add_theme_font_size_override("font_size", 16)
+	intro_body.add_theme_color_override("font_color", Color("#FFF7F0"))
+	intro_body.add_theme_constant_override("line_spacing", 5)
+
+	# Explore menu container.
 	var menu_panel := PanelContainer.new()
 	menu_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	menu_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1939,49 +2326,53 @@ func show_more() -> void:
 	menu_panel.scale = Vector2(0.98, 0.98)
 
 	var menu_style := StyleBoxFlat.new()
-	menu_style.bg_color = Color("#641A24")
-	menu_style.border_color = Color("#D4AF37")
-	menu_style.set_border_width_all(2)
-	menu_style.corner_radius_top_left = 16
-	menu_style.corner_radius_top_right = 16
-	menu_style.corner_radius_bottom_left = 16
-	menu_style.corner_radius_bottom_right = 16
-	menu_style.shadow_color = Color(0, 0, 0, 0.55)
-	menu_style.shadow_size = 10
+	menu_style.bg_color = Color("#31060D")
+	menu_style.border_color = Color("#8C6A2F")
+	menu_style.set_border_width_all(1)
+	menu_style.set_corner_radius_all(16)
+	menu_style.shadow_color = Color(0, 0, 0, 0.60)
+	menu_style.shadow_size = 9
 	menu_style.shadow_offset = Vector2(0, 3)
-	menu_style.content_margin_left = 14
-	menu_style.content_margin_right = 14
-	menu_style.content_margin_top = 16
-	menu_style.content_margin_bottom = 16
+	menu_style.content_margin_left = 12
+	menu_style.content_margin_right = 12
+	menu_style.content_margin_top = 15
+	menu_style.content_margin_bottom = 15
 	menu_panel.add_theme_stylebox_override("panel", menu_style)
-
 	content.add_child(menu_panel)
 	_animate_section(menu_panel)
 
 	var menu_box := VBoxContainer.new()
-	menu_box.add_theme_constant_override("separation", 8)
+	menu_box.add_theme_constant_override("separation", 10)
+	menu_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	menu_panel.add_child(menu_box)
 
+	var menu_eyebrow := Label.new()
+	menu_eyebrow.text = "QUICK LINKS"
+	menu_eyebrow.add_theme_font_size_override("font_size", 11)
+	menu_eyebrow.add_theme_color_override("font_color", Color("#E94B5F"))
+	menu_eyebrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	menu_box.add_child(menu_eyebrow)
+
 	var menu_title := Label.new()
-	menu_title.text = "Explore The Spot"
-	menu_title.add_theme_font_size_override("font_size", 21)
-	menu_title.add_theme_color_override("font_color", Color("#FFE06A"))
-	menu_title.add_theme_color_override(
-		"font_outline_color",
-		Color("#3A080E")
-	)
-	menu_title.add_theme_constant_override("outline_size", 4)
+	menu_title.text = "EXPLORE THE SPOT"
+	menu_title.add_theme_font_size_override("font_size", 23)
+	menu_title.add_theme_color_override("font_color", Color("#FFF0B5"))
+	menu_title.add_theme_color_override("font_outline_color", Color("#3A080E"))
+	menu_title.add_theme_constant_override("outline_size", 3)
+	menu_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	menu_box.add_child(menu_title)
 
 	var menu_line := ColorRect.new()
-	menu_line.color = Color("#D4AF37")
+	menu_line.color = Color("#FFE36E")
 	menu_line.custom_minimum_size = Vector2(0, 2)
 	menu_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	menu_box.add_child(menu_line)
 
 	menu_box.add_child(
 		_more_action_button(
+			"★",
 			"ABOUT THE FOUNDERS",
+			"Meet the people behind The Spot.",
 			show_founders,
 			true
 		)
@@ -1989,14 +2380,18 @@ func show_more() -> void:
 
 	menu_box.add_child(
 		_more_action_button(
+			"V",
 			"VIP MEMBERSHIP",
+			"Member perks, event access, and more.",
 			show_vip
 		)
 	)
 
 	menu_box.add_child(
 		_more_action_button(
+			"▶",
 			"ON THE SPOT PODCAST",
+			"Watch conversations from the community.",
 			_open_more_link.bind(
 				"https://www.youtube.com/@thespotsoberlounge1079"
 			)
@@ -2005,48 +2400,55 @@ func show_more() -> void:
 
 	menu_box.add_child(
 		_more_action_button(
+			"⌂",
 			"VISIT OUR WEBSITE",
-			_open_more_link.bind(
-				"https://thespotlounge.com/"
-			)
+			"Explore the complete Spot website.",
+			_open_more_link.bind("https://thespotlounge.com/")
 		)
 	)
 
 	menu_box.add_child(
 		_more_action_button(
+			"@",
 			"CONTACT & SUPPORT",
-			_open_more_link.bind(
-				"mailto:thespotphoenix@gmail.com"
-			)
+			"Email or call The Spot team.",
+			_open_more_link.bind("mailto:thespotphoenix@gmail.com")
 		)
 	)
 
 	menu_box.add_child(
 		_more_action_button(
+			"i",
 			"PRIVACY POLICY",
+			"Review privacy and app information.",
 			_open_more_link.bind(
 				"https://isaacweigner51-arch.github.io/the-spot-sober-lounge-app/docs/index.html"
 			)
 		)
 	)
 
-	var contact_line := HSeparator.new()
-	contact_line.modulate = Color(0.83, 0.69, 0.22, 0.55)
-	menu_box.add_child(contact_line)
+	var contact_panel := PanelContainer.new()
+	contact_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var contact_style := StyleBoxFlat.new()
+	contact_style.bg_color = Color("#4A101A")
+	contact_style.border_color = Color("#8C6A2F")
+	contact_style.set_border_width_all(1)
+	contact_style.set_corner_radius_all(12)
+	contact_style.content_margin_left = 12
+	contact_style.content_margin_right = 12
+	contact_style.content_margin_top = 10
+	contact_style.content_margin_bottom = 10
+	contact_panel.add_theme_stylebox_override("panel", contact_style)
+	menu_box.add_child(contact_panel)
 
 	var contact_info := Label.new()
-	contact_info.text = (
-		"thespotphoenix@gmail.com\n"
-		+ "480-249-0492"
-	)
+	contact_info.text = "thespotphoenix@gmail.com  •  480-249-0492"
 	contact_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	contact_info.add_theme_font_size_override("font_size", 14)
-	contact_info.add_theme_color_override(
-		"font_color",
-		Color("#D9C9C1")
-	)
-	contact_info.add_theme_constant_override("line_spacing", 3)
-	menu_box.add_child(contact_info)
+	contact_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	contact_info.add_theme_font_size_override("font_size", 13)
+	contact_info.add_theme_color_override("font_color", Color("#D9C9C1"))
+	contact_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	contact_panel.add_child(contact_info)
 
 	var version_label := Label.new()
 	version_label.text = "THE SPOT SOBER LOUNGE • VERSION 1.0"
@@ -2055,75 +2457,43 @@ func show_more() -> void:
 	version_label.add_theme_font_size_override("font_size", 11)
 	version_label.add_theme_color_override(
 		"font_color",
-		Color(0.83, 0.69, 0.22, 0.70)
+		Color(0.83, 0.69, 0.22, 0.72)
 	)
+	version_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	menu_box.add_child(version_label)
 
 	var bottom_space := Control.new()
-	bottom_space.custom_minimum_size.y = 24
+	bottom_space.custom_minimum_size.y = 90
+	bottom_space.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content.add_child(bottom_space)
 
 
 func _more_action_button(
-	button_text: String,
+	icon_text: String,
+	button_title: String,
+	description: String,
 	action: Callable,
 	featured := false
 ) -> Button:
 	var button := Button.new()
-	button.text = button_text + "   ›"
-	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	button.custom_minimum_size = Vector2(0, 54)
+	button.text = ""
+	button.custom_minimum_size = Vector2(0, 82)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.mouse_filter = Control.MOUSE_FILTER_PASS
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	button.add_theme_font_size_override("font_size", 15)
-	button.add_theme_color_override(
-		"font_color",
-		Color("#FFE06A")
-	)
-	button.add_theme_color_override(
-		"font_hover_color",
-		Color.WHITE
-	)
-	button.add_theme_color_override(
-		"font_pressed_color",
-		Color.WHITE
-	)
-	button.add_theme_color_override(
-		"font_outline_color",
-		Color("#3A080E")
-	)
-	button.add_theme_constant_override("outline_size", 3)
+	button.clip_contents = true
 
 	var normal_style := StyleBoxFlat.new()
-	normal_style.bg_color = (
-		Color("#C91932")
-		if featured
-		else Color("#4A161B")
-	)
-	normal_style.border_color = (
-		Color("#FFE06A")
-		if featured
-		else Color("#8C6A2F")
-	)
+	normal_style.bg_color = Color("#A9152D") if featured else Color("#4A161B")
+	normal_style.border_color = Color("#FFE36E") if featured else Color("#8C6A2F")
 	normal_style.set_border_width_all(2 if featured else 1)
-	normal_style.corner_radius_top_left = 10
-	normal_style.corner_radius_top_right = 10
-	normal_style.corner_radius_bottom_left = 10
-	normal_style.corner_radius_bottom_right = 10
-	normal_style.shadow_color = Color(0, 0, 0, 0.40)
-	normal_style.shadow_size = 5
+	normal_style.set_corner_radius_all(12)
+	normal_style.shadow_color = Color(0, 0, 0, 0.45)
+	normal_style.shadow_size = 6
 	normal_style.shadow_offset = Vector2(0, 2)
-	normal_style.content_margin_left = 16
-	normal_style.content_margin_right = 14
-	normal_style.content_margin_top = 8
-	normal_style.content_margin_bottom = 8
 
 	var hover_style := normal_style.duplicate() as StyleBoxFlat
-	hover_style.bg_color = (
-		Color("#E01E3C")
-		if featured
-		else Color("#721E27")
-	)
+	hover_style.bg_color = Color("#D21F3B") if featured else Color("#721E27")
 	hover_style.border_color = Color("#FFF09A")
 
 	var pressed_style := normal_style.duplicate() as StyleBoxFlat
@@ -2135,12 +2505,76 @@ func _more_action_button(
 	button.add_theme_stylebox_override("pressed", pressed_style)
 	button.add_theme_stylebox_override("focus", hover_style)
 
-	button.button_down.connect(
-		_animate_more_button.bind(button, true)
-	)
-	button.button_up.connect(
-		_animate_more_button.bind(button, false)
-	)
+	var row := HBoxContainer.new()
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	row.offset_left = 12
+	row.offset_right = -12
+	row.offset_top = 8
+	row.offset_bottom = -8
+	row.add_theme_constant_override("separation", 12)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(row)
+
+	var icon_badge := PanelContainer.new()
+	icon_badge.custom_minimum_size = Vector2(48, 48)
+	icon_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var icon_style := StyleBoxFlat.new()
+	icon_style.bg_color = Color("#E30620") if featured else Color("#6A1420")
+	icon_style.border_color = Color("#FFE36E")
+	icon_style.set_border_width_all(2)
+	icon_style.set_corner_radius_all(24)
+	icon_badge.add_theme_stylebox_override("panel", icon_style)
+	row.add_child(icon_badge)
+
+	var icon_label := Label.new()
+	icon_label.text = icon_text
+	icon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	icon_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	icon_label.add_theme_font_size_override("font_size", 20)
+	icon_label.add_theme_color_override("font_color", Color("#FFF0B5"))
+	icon_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon_badge.add_child(icon_label)
+
+	var text_stack := VBoxContainer.new()
+	text_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text_stack.alignment = BoxContainer.ALIGNMENT_CENTER
+	text_stack.add_theme_constant_override("separation", 2)
+	text_stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(text_stack)
+
+	var title_label_text := Label.new()
+	title_label_text.text = button_title
+	title_label_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title_label_text.custom_minimum_size.x = 0
+	title_label_text.add_theme_font_size_override("font_size", 15)
+	title_label_text.add_theme_color_override("font_color", Color("#FFE9A0"))
+	title_label_text.add_theme_color_override("font_outline_color", Color("#3A080E"))
+	title_label_text.add_theme_constant_override("outline_size", 2)
+	title_label_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	text_stack.add_child(title_label_text)
+
+	var description_label := Label.new()
+	description_label.text = description
+	description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	description_label.custom_minimum_size.x = 0
+	description_label.add_theme_font_size_override("font_size", 12)
+	description_label.add_theme_color_override("font_color", Color("#D9C9C1"))
+	description_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	text_stack.add_child(description_label)
+
+	var chevron := Label.new()
+	chevron.text = "›"
+	chevron.custom_minimum_size.x = 20
+	chevron.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	chevron.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	chevron.add_theme_font_size_override("font_size", 28)
+	chevron.add_theme_color_override("font_color", Color("#FFE36E"))
+	chevron.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(chevron)
+
+	button.button_down.connect(_animate_more_button.bind(button, true))
+	button.button_up.connect(_animate_more_button.bind(button, false))
 	button.pressed.connect(action)
 
 	return button
@@ -2206,39 +2640,215 @@ func _on_main_scroll_gui_input(event: InputEvent) -> void:
 		overscroll_offset = 0.0
 	
 func show_shop() -> void:
-	_clear("")
+	_clear("Shop")
 	title_label.visible = false
+	main_scroll.scroll_vertical = 0
 	_add_page_header(
 		"SHOP",
 		"Wear the message. Support the mission.",
 		"shop",
 		"SHOP\nNOW"
 	)
-	if shop_products.size() > 0:
-		for product in shop_products:
-			var _product_name: String = str(product.get("name", "Unnamed Product"))
-			_product_name = _product_name.replace("&#8217;", "'").replace("&#8211;", "-").replace("&#8230;", "...")
-			var _product_url: String = str(product.get("permalink", ""))
-			var _images = product.get("images", [])
-			var _image_url: String = str(_images[0].get("thumbnail", _images[0].get("src", ""))) if _images.size() > 0 else ""
-			var _product_image = TextureRect.new()
-			_product_image.custom_minimum_size = Vector2(0, 180)
-			_product_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			_product_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			content.add_child(_product_image)
-			if _image_url != "":
-				_load_product_image(_image_url, _product_image)
-			var _prices = product.get("prices", {})
-			var _price_raw: String = str(_prices.get("price", "0"))
-			var _minor_unit: int = int(_prices.get("currency_minor_unit", 2))
-			var _price_value: float = float(_price_raw) / pow(10.0, _minor_unit)
-			var _price_text: String = "$%.2f" % _price_value
-			_section(_product_name, _price_text, "BUY ON WEBSITE", _product_url)
-			
+
 	if shop_products.is_empty():
-		shop_request.request(SHOP_API_URL)
+		if shop_request.get_http_client_status() == HTTPClient.STATUS_DISCONNECTED:
+			shop_request.request(SHOP_API_URL)
+
+		var loading_panel := PanelContainer.new()
+		loading_panel.custom_minimum_size.y = 96
+		loading_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+		var loading_style := StyleBoxFlat.new()
+		loading_style.bg_color = Color("#4A0612")
+		loading_style.border_color = Color("#FFE36E")
+		loading_style.set_border_width_all(2)
+		loading_style.set_corner_radius_all(14)
+		loading_panel.add_theme_stylebox_override("panel", loading_style)
+		content.add_child(loading_panel)
+
+		var loading_label := Label.new()
+		loading_label.text = "Loading The Spot Shop..."
+		loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		loading_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		loading_label.add_theme_font_size_override("font_size", 17)
+		loading_label.add_theme_color_override("font_color", Color("#FFF0B5"))
+		loading_panel.add_child(loading_label)
 		return
-	
+
+	for product in shop_products:
+		var product_name := str(product.get("name", "Unnamed Product"))
+		product_name = product_name.replace("&#8217;", "'")
+		product_name = product_name.replace("&#8211;", "-")
+		product_name = product_name.replace("&#8230;", "...")
+		product_name = product_name.replace("&amp;", "&")
+
+		var product_url := str(product.get("permalink", ""))
+		var product_images = product.get("images", [])
+		var image_url := ""
+
+		if product_images.size() > 0:
+			image_url = str(
+				product_images[0].get(
+					"thumbnail",
+					product_images[0].get("src", "")
+				)
+			)
+
+		var prices = product.get("prices", {})
+		var price_raw := str(prices.get("price", "0"))
+		var minor_unit := int(prices.get("currency_minor_unit", 2))
+		var price_value := float(price_raw) / pow(10.0, minor_unit)
+		var price_text := "$%.2f" % price_value
+
+		var product_card := PanelContainer.new()
+		product_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		product_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		product_card.modulate.a = 0.0
+		product_card.scale = Vector2(0.98, 0.98)
+
+		var card_style := StyleBoxFlat.new()
+		card_style.bg_color = Color("#4A0612")
+		card_style.border_color = Color("#FFE36E")
+		card_style.set_border_width_all(2)
+		card_style.set_corner_radius_all(16)
+		card_style.shadow_color = Color(0, 0, 0, 0.72)
+		card_style.shadow_size = 11
+		card_style.shadow_offset = Vector2(0, 4)
+		card_style.content_margin_left = 0
+		card_style.content_margin_right = 0
+		card_style.content_margin_top = 0
+		card_style.content_margin_bottom = 0
+		product_card.add_theme_stylebox_override("panel", card_style)
+		content.add_child(product_card)
+		_animate_section(product_card)
+
+		var product_box := VBoxContainer.new()
+		product_box.add_theme_constant_override("separation", 0)
+		product_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		product_card.add_child(product_box)
+
+		var image_frame := PanelContainer.new()
+		image_frame.custom_minimum_size.y = 210
+		image_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+		var image_frame_style := StyleBoxFlat.new()
+		image_frame_style.bg_color = Color("#180207")
+		image_frame_style.border_color = Color("#E30620")
+		image_frame_style.border_width_bottom = 3
+		image_frame_style.corner_radius_top_left = 14
+		image_frame_style.corner_radius_top_right = 14
+		image_frame_style.content_margin_left = 8
+		image_frame_style.content_margin_right = 8
+		image_frame_style.content_margin_top = 8
+		image_frame_style.content_margin_bottom = 8
+		image_frame.add_theme_stylebox_override("panel", image_frame_style)
+		product_box.add_child(image_frame)
+
+		var product_image := TextureRect.new()
+		product_image.custom_minimum_size = Vector2(0, 194)
+		product_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		product_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		product_image.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		product_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		image_frame.add_child(product_image)
+
+		if image_url != "":
+			_load_product_image(image_url, product_image)
+
+		var info_margin := MarginContainer.new()
+		info_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		info_margin.add_theme_constant_override("margin_left", 16)
+		info_margin.add_theme_constant_override("margin_right", 16)
+		info_margin.add_theme_constant_override("margin_top", 14)
+		info_margin.add_theme_constant_override("margin_bottom", 16)
+		product_box.add_child(info_margin)
+
+		var info_box := VBoxContainer.new()
+		info_box.add_theme_constant_override("separation", 10)
+		info_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		info_margin.add_child(info_box)
+
+		var product_eyebrow := Label.new()
+		product_eyebrow.text = "THE SPOT SHOP"
+		product_eyebrow.add_theme_font_size_override("font_size", 11)
+		product_eyebrow.add_theme_color_override("font_color", Color("#E94B5F"))
+		product_eyebrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		info_box.add_child(product_eyebrow)
+
+		var product_title := Label.new()
+		product_title.text = product_name
+		product_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		product_title.custom_minimum_size.x = 0
+		product_title.add_theme_font_size_override("font_size", 22)
+		product_title.add_theme_color_override("font_color", Color("#FFF0B5"))
+		product_title.add_theme_color_override("font_outline_color", Color("#3A080E"))
+		product_title.add_theme_constant_override("outline_size", 3)
+		product_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		info_box.add_child(product_title)
+
+		var price_badge := PanelContainer.new()
+		price_badge.custom_minimum_size = Vector2(104, 40)
+		price_badge.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		price_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+		var price_style := StyleBoxFlat.new()
+		price_style.bg_color = Color("#FFD768")
+		price_style.border_color = Color("#FFE9A0")
+		price_style.set_border_width_all(2)
+		price_style.set_corner_radius_all(10)
+		price_badge.add_theme_stylebox_override("panel", price_style)
+		info_box.add_child(price_badge)
+
+		var price_label := Label.new()
+		price_label.text = price_text
+		price_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		price_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		price_label.add_theme_font_size_override("font_size", 18)
+		price_label.add_theme_color_override("font_color", Color("#3A080E"))
+		price_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		price_badge.add_child(price_label)
+
+		var shop_button := Button.new()
+		shop_button.text = "VIEW IN SHOP   ›"
+		shop_button.custom_minimum_size.y = 56
+		shop_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		shop_button.add_theme_font_size_override("font_size", 16)
+		shop_button.add_theme_color_override("font_color", Color("#FFF0B5"))
+		shop_button.add_theme_color_override("font_hover_color", Color.WHITE)
+		shop_button.add_theme_color_override("font_pressed_color", Color.WHITE)
+
+		var button_style := StyleBoxFlat.new()
+		button_style.bg_color = Color("#E30620")
+		button_style.border_color = Color("#FFE36E")
+		button_style.set_border_width_all(2)
+		button_style.set_corner_radius_all(12)
+		button_style.shadow_color = Color(0, 0, 0, 0.50)
+		button_style.shadow_size = 6
+		button_style.shadow_offset = Vector2(0, 3)
+		shop_button.add_theme_stylebox_override("normal", button_style)
+
+		var button_hover := button_style.duplicate() as StyleBoxFlat
+		button_hover.bg_color = Color("#FF1733")
+		shop_button.add_theme_stylebox_override("hover", button_hover)
+		shop_button.add_theme_stylebox_override("focus", button_hover)
+
+		var button_pressed := button_style.duplicate() as StyleBoxFlat
+		button_pressed.bg_color = Color("#9E071A")
+		shop_button.add_theme_stylebox_override("pressed", button_pressed)
+
+		if product_url == "":
+			shop_button.disabled = true
+		else:
+			shop_button.pressed.connect(
+				_open_more_link.bind(product_url)
+			)
+
+		info_box.add_child(shop_button)
+
+	var bottom_space := Control.new()
+	bottom_space.custom_minimum_size.y = 26
+	content.add_child(bottom_space)
+
 	
 func _on_shop_request_completed(
 	_result: int,
