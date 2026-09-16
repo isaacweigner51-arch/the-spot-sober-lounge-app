@@ -73,8 +73,12 @@ func _load_cached_live_data() -> void:
 		if _data is Array:
 			events_data = _data
 	
-func _apply_safe_area(safe_root: MarginContainer) -> void:
+func _apply_safe_area(
+	safe_root: MarginContainer,
+	bottom_safe_fill: Panel
+) -> void:
 	if OS.get_name() != "iOS" and OS.get_name() != "Android":
+		bottom_safe_fill.visible = false
 		return
 
 	var safe_rect: Rect2i = DisplayServer.get_display_safe_area()
@@ -89,23 +93,55 @@ func _apply_safe_area(safe_root: MarginContainer) -> void:
 
 	var left_margin: int = int(round(safe_rect.position.x * scale_x))
 	var top_margin: int = int(round(safe_rect.position.y * scale_y))
-	var right_pixels: int = screen_size.x - safe_rect.position.x - safe_rect.size.x
-	var bottom_pixels: int = screen_size.y - safe_rect.position.y - safe_rect.size.y
-	var right_margin: int = int(round(max(0, right_pixels) * scale_x))
-	var bottom_margin: int = int(round(max(0, bottom_pixels) * scale_y))
+	var right_pixels: int = (
+		screen_size.x
+		- safe_rect.position.x
+		- safe_rect.size.x
+	)
+	var bottom_pixels: int = (
+		screen_size.y
+		- safe_rect.position.y
+		- safe_rect.size.y
+	)
+	var right_margin: int = int(
+		round(max(0, right_pixels) * scale_x)
+	)
+	var bottom_margin: int = int(
+		round(max(0, bottom_pixels) * scale_y)
+	)
 
-	safe_root.add_theme_constant_override("margin_left", left_margin)
-	safe_root.add_theme_constant_override("margin_top", top_margin)
-	safe_root.add_theme_constant_override("margin_right", right_margin)
-	safe_root.add_theme_constant_override("margin_bottom", bottom_margin)
+	safe_root.add_theme_constant_override(
+		"margin_left",
+		left_margin
+	)
+	safe_root.add_theme_constant_override(
+		"margin_top",
+		top_margin
+	)
+	safe_root.add_theme_constant_override(
+		"margin_right",
+		right_margin
+	)
+	safe_root.add_theme_constant_override(
+		"margin_bottom",
+		bottom_margin
+	)
+
+	bottom_safe_fill.visible = (
+		OS.get_name() == "iOS"
+		and bottom_margin > 0
+	)
+	bottom_safe_fill.offset_top = -float(bottom_margin)
 	
 func _build_shell() -> void:
 	var bg_image = load("res://assets/freedom.jpeg")
+
 	bg = TextureRect.new()
 	bg.texture = bg_image
 	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
+
 	var background_tint := ColorRect.new()
 	background_tint.color = Color(0.02, 0.01, 0.015, 0.32)
 	background_tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -113,6 +149,38 @@ func _build_shell() -> void:
 		Control.PRESET_FULL_RECT
 	)
 	add_child(background_tint)
+
+	# Fill the iPhone bottom safe area with the navigation color.
+	var bottom_safe_fill := Panel.new()
+	bottom_safe_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bottom_safe_fill.anchor_left = 0.0
+	bottom_safe_fill.anchor_top = 1.0
+	bottom_safe_fill.anchor_right = 1.0
+	bottom_safe_fill.anchor_bottom = 1.0
+	bottom_safe_fill.offset_left = 0.0
+	bottom_safe_fill.offset_top = 0.0
+	bottom_safe_fill.offset_right = 0.0
+	bottom_safe_fill.offset_bottom = 0.0
+	bottom_safe_fill.visible = false
+
+	var bottom_fill_style := StyleBoxFlat.new()
+	bottom_fill_style.bg_color = Color.from_rgba8(
+		74, 22, 27, 255
+	)
+	bottom_fill_style.border_color = Color.from_rgba8(
+		212, 175, 55, 255
+	)
+	bottom_fill_style.border_width_left = 2
+	bottom_fill_style.border_width_right = 2
+	bottom_fill_style.border_width_bottom = 2
+	bottom_fill_style.corner_radius_bottom_left = 18
+	bottom_fill_style.corner_radius_bottom_right = 18
+
+	bottom_safe_fill.add_theme_stylebox_override(
+		"panel",
+		bottom_fill_style
+	)
+	add_child(bottom_safe_fill)
 
 	var safe_root := MarginContainer.new()
 	safe_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -126,34 +194,42 @@ func _build_shell() -> void:
 	safe_root.add_child(root)
 
 	get_viewport().size_changed.connect(
-		func(): _apply_safe_area(safe_root)
+		func():
+			_apply_safe_area(safe_root, bottom_safe_fill)
 	)
-	call_deferred("_apply_safe_area", safe_root)
 
-	var header = VBoxContainer.new()
+	call_deferred(
+		"_apply_safe_area",
+		safe_root,
+		bottom_safe_fill
+	)
+
+	var header := VBoxContainer.new()
 	header.custom_minimum_size.y = 14
 	header.add_theme_constant_override("separation", 2)
 	root.add_child(header)
-	
 
 	title_label = Label.new()
-	title_label.add_theme_font_size_override("font_size", 24)
-	title_label.add_theme_color_override("font_color", TEXT)
 	title_label.add_theme_font_size_override("font_size", 28)
-	title_label.add_theme_color_override("font_outline_color", Color("#000000"))
+	title_label.add_theme_color_override("font_color", TEXT)
+	title_label.add_theme_color_override(
+		"font_outline_color",
+		Color("#000000")
+	)
 	title_label.add_theme_constant_override("outline_size", 12)
 	title_label.custom_minimum_size.y = 20
 	title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root.add_child(title_label)
 
-	var scroll = ScrollContainer.new()
+	var scroll := ScrollContainer.new()
 	main_scroll = scroll
 	scroll.gui_input.connect(_on_main_scroll_gui_input)
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	scroll.scroll_deadzone = 0
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(scroll)
+
 	content = VBoxContainer.new()
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content.add_theme_constant_override("separation", 12)
@@ -164,6 +240,7 @@ func _build_shell() -> void:
 	nav.alignment = BoxContainer.ALIGNMENT_CENTER
 	nav.add_theme_constant_override("separation", 6)
 	root.add_child(nav)
+
 	_nav_button("Home", show_home)
 	_nav_button("Meetings", show_meetings)
 	_nav_button("Events", show_events)
