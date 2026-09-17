@@ -7,7 +7,7 @@ const GOLD := Color("D4AF37")
 const TEXT := Color("f5f1e8")
 const MUTED := Color("aaa69d")
 const SHOP_API_URL := "https://thespotlounge.com/wp-json/wc/store/v1/products?per_page=100"
-const EVENTS_URL := "https://thespotlounge.com/wp-json/wp/v2/event?per_page=100"
+const EVENTS_URL := "https://thespotlounge.com/wp-json/wp/v2/event?per_page=100&_embed=1"
 const MEMBERSHIP_API_URL := "https://thespotlounge.com/wp-json/wp/v2/search?search=Monthly&subtype=product&per_page=100"
 const MEETINGS_API_URL := "https://thespotlounge.com/wp-json/wp/v2/pages?slug=meetings"
 
@@ -22,6 +22,7 @@ var overscroll_offset := 0.0
 var main_scroll: ScrollContainer
 var events_request: HTTPRequest
 var events_data: Array = []
+var event_schedule_cache: Dictionary = {}
 var membership_request: HTTPRequest
 var meetings_request: HTTPRequest
 var meetings_html: String = ""
@@ -300,6 +301,16 @@ func _show_opening_screen() -> void:
 	button_pulse.kill()
 	enter_button.disabled = true
 	Input.vibrate_handheld(60)
+	var entrance_sound := AudioStreamPlayer.new()
+	entrance_sound.stream = load(
+		"res://assets/audio/come_on_in.mp3"
+	)
+	entrance_sound.volume_db = -8.0
+	add_child(entrance_sound)
+	entrance_sound.finished.connect(
+		entrance_sound.queue_free
+	)
+	entrance_sound.play()
 	var flash := ColorRect.new()
 	flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	flash.color = Color("#F5C542")
@@ -321,23 +332,185 @@ func _show_opening_screen() -> void:
 
 	enter_button.text = "WELCOME HOME"
 
-	var flash_tween := create_tween()
-	flash_tween.tween_property(flash, "modulate:a", 0.28, 0.08)
-	flash_tween.tween_property(flash, "modulate:a", 0.0, 0.20)
+		# Two lounge-style doors cover the splash, then open onto Home.
+	var left_door := PanelContainer.new()
+	left_door.anchor_left = 0.0
+	left_door.anchor_top = 0.0
+	left_door.anchor_right = 0.5
+	left_door.anchor_bottom = 1.0
+	left_door.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	left_door.modulate.a = 0.0
+	left_door.z_index = 200
 
-	var transition := create_tween()
-	transition.set_parallel(true)
-	transition.set_trans(Tween.TRANS_QUAD)
-	transition.set_ease(Tween.EASE_IN)
-	transition.tween_property(photo, "scale", Vector2(1.38, 1.38), 0.72)
-	transition.tween_property(photo, "modulate:a", 0.0, 0.72).set_delay(0.18)
-	transition.tween_property(shade, "modulate:a", 0.0, 0.55)
-	transition.tween_property(logo_holder, "scale", Vector2(1.16, 1.16), 0.55)
-	transition.tween_property(logo_holder, "modulate:a", 0.0, 0.46)
-	transition.tween_property(button_holder, "scale", Vector2(1.12, 1.12), 0.48)
-	transition.tween_property(button_holder, "modulate:a", 0.0, 0.40)
+	var left_door_style := StyleBoxFlat.new()
+	left_door_style.bg_color = Color("#26050B")
+	left_door_style.border_color = Color("#FFE36E")
+	left_door_style.border_width_right = 3
+	left_door_style.shadow_color = Color(0, 0, 0, 0.85)
+	left_door_style.shadow_size = 12
+	left_door_style.shadow_offset = Vector2(5, 0)
+	left_door.add_theme_stylebox_override(
+		"panel",
+		left_door_style
+	)
+	splash.add_child(left_door)
 
-	await transition.finished
+	var right_door := PanelContainer.new()
+	right_door.anchor_left = 0.5
+	right_door.anchor_top = 0.0
+	right_door.anchor_right = 1.0
+	right_door.anchor_bottom = 1.0
+	right_door.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	right_door.modulate.a = 0.0
+	right_door.z_index = 200
+
+	var right_door_style := StyleBoxFlat.new()
+	right_door_style.bg_color = Color("#26050B")
+	right_door_style.border_color = Color("#FFE36E")
+	right_door_style.border_width_left = 3
+	right_door_style.shadow_color = Color(0, 0, 0, 0.85)
+	right_door_style.shadow_size = 12
+	right_door_style.shadow_offset = Vector2(-5, 0)
+	right_door.add_theme_stylebox_override(
+		"panel",
+		right_door_style
+	)
+	splash.add_child(right_door)
+
+	var welcome_overlay := Label.new()
+	welcome_overlay.set_anchors_and_offsets_preset(
+		Control.PRESET_FULL_RECT
+	)
+	welcome_overlay.text = "WELCOME HOME"
+	welcome_overlay.horizontal_alignment = (
+		HORIZONTAL_ALIGNMENT_CENTER
+	)
+	welcome_overlay.vertical_alignment = (
+		VERTICAL_ALIGNMENT_CENTER
+	)
+	welcome_overlay.add_theme_font_size_override(
+		"font_size",
+		46
+	)
+	welcome_overlay.add_theme_color_override(
+		"font_color",
+		Color("#FFF0B5")
+	)
+	welcome_overlay.add_theme_color_override(
+		"font_outline_color",
+		Color("#B60920")
+	)
+	welcome_overlay.add_theme_constant_override(
+		"outline_size",
+		8
+	)
+	welcome_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	welcome_overlay.modulate.a = 0.0
+	welcome_overlay.z_index = 201
+
+	if ResourceLoader.exists(
+		"res://assets/fonts/Yellowtail/Yellowtail-Regular.ttf"
+	):
+		welcome_overlay.add_theme_font_override(
+			"font",
+			load(
+				"res://assets/fonts/Yellowtail/Yellowtail-Regular.ttf"
+			)
+		)
+
+	splash.add_child(welcome_overlay)
+
+	await get_tree().process_frame
+
+	# Brief branded pulse as the doors appear.
+	var cover_tween := create_tween()
+	cover_tween.set_parallel(true)
+	cover_tween.set_trans(Tween.TRANS_QUAD)
+	cover_tween.set_ease(Tween.EASE_OUT)
+	cover_tween.tween_property(
+		logo_holder,
+		"scale",
+		Vector2(1.08, 1.08),
+		0.32
+	)
+	cover_tween.tween_property(
+		photo,
+		"modulate:a",
+		0.0,
+		0.32
+	)
+	cover_tween.tween_property(
+		shade,
+		"modulate:a",
+		0.0,
+		0.32
+	)
+	cover_tween.tween_property(
+		logo_holder,
+		"modulate:a",
+		0.0,
+		0.32
+	)
+	cover_tween.tween_property(
+		button_holder,
+		"modulate:a",
+		0.0,
+		0.32
+	)
+	cover_tween.tween_property(
+		black_background,
+		"modulate:a",
+		0.0,
+		0.32
+	)
+	cover_tween.tween_property(
+		left_door,
+		"modulate:a",
+		1.0,
+		0.18
+	)
+	cover_tween.tween_property(
+		right_door,
+		"modulate:a",
+		1.0,
+		0.32
+	)
+	cover_tween.tween_property(
+		welcome_overlay,
+		"modulate:a",
+		1.0,
+		0.40
+	)
+
+	await cover_tween.finished
+	await get_tree().create_timer(0.22).timeout
+
+	var screen_width := splash.size.x
+
+	var door_tween := create_tween()
+	door_tween.set_parallel(true)
+	door_tween.set_trans(Tween.TRANS_CUBIC)
+	door_tween.set_ease(Tween.EASE_IN_OUT)
+	door_tween.tween_property(
+		left_door,
+		"position:x",
+		left_door.position.x - screen_width * 0.55,
+		1.15
+	)
+	door_tween.tween_property(
+		right_door,
+		"position:x",
+		right_door.position.x + screen_width * 0.55,
+		1.15
+	)
+	door_tween.tween_property(
+		welcome_overlay,
+		"modulate:a",
+		0.0,
+		0.65
+	).set_delay(0.32)
+
+	await door_tween.finished
 	splash.queue_free()
 
 	
@@ -511,9 +684,9 @@ func _build_shell() -> void:
 
 	var scroll := ScrollContainer.new()
 	main_scroll = scroll
-	scroll.gui_input.connect(_on_main_scroll_gui_input)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
-	scroll.scroll_deadzone = 0
+	scroll.scroll_deadzone = 12
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(scroll)
 
@@ -2132,6 +2305,69 @@ func show_meetings() -> void:
 	updated_label.add_theme_color_override("font_color", Color("#BFAFB0"))
 	page_box.add_child(updated_label)
 
+func _load_event_schedule(
+	event_url: String,
+	target: Label
+) -> void:
+	if event_url == "" or not is_instance_valid(target):
+		return
+
+	if event_schedule_cache.has(event_url):
+		target.text = str(event_schedule_cache[event_url])
+		return
+
+	var schedule_request := HTTPRequest.new()
+	add_child(schedule_request)
+
+	schedule_request.request_completed.connect(
+		_on_event_schedule_request_completed.bind(
+			schedule_request,
+			target,
+			event_url
+		)
+	)
+
+	var request_error := schedule_request.request(event_url)
+
+	if request_error != OK:
+		schedule_request.queue_free()
+		target.text = "FOR EVENT TIME, CONTACT THE SPOT"
+
+
+func _on_event_schedule_request_completed(
+	_result: int,
+	response_code: int,
+	_headers: PackedStringArray,
+	body: PackedByteArray,
+	schedule_request: HTTPRequest,
+	target: Label,
+	event_url: String
+) -> void:
+	var display_schedule := "FOR EVENT TIME, CONTACT THE SPOT"
+
+	if response_code >= 200 and response_code < 300:
+		var page_html := body.get_string_from_utf8()
+		var schedule_regex := RegEx.new()
+
+		schedule_regex.compile(
+			"([A-Z][a-z]+ [0-9]{1,2}, [0-9]{4} [0-9]{1,2}:[0-9]{2} (am|pm))"
+		)
+
+		var schedule_match := schedule_regex.search(page_html)
+
+		if schedule_match != null:
+			display_schedule = schedule_match.get_string(1).to_upper()
+
+	event_schedule_cache[event_url] = display_schedule
+
+	if is_instance_valid(target):
+		target.text = display_schedule
+
+	if is_instance_valid(schedule_request):
+		schedule_request.queue_free()
+
+
+
 
 func show_events() -> void:
 	_clear("")
@@ -2148,13 +2384,73 @@ func show_events() -> void:
 			events_request.request(EVENTS_URL)
 		return
 
-	for event_item in events_data:
+	var display_events: Array = events_data.duplicate(true)
+	var has_big_book_showdown := false
+
+	for existing_event in display_events:
+		var existing_title := str(
+			existing_event.get("title", {}).get("rendered", "")
+		)
+
+		if existing_title.to_lower().contains("big book showdown"):
+			has_big_book_showdown = true
+			break
+
+	if not has_big_book_showdown:
+		display_events.push_front({
+			"title": {
+				"rendered": "The Big Book Showdown"
+			},
+			"link": "https://www.facebook.com/thespotsoberlounge/",
+			"local_image": "res://assets/events/big_book_showdown.jpeg",
+			"summary": "September 26 • Big Book Trivia • Spades • Dominoes • Chess\nTeams of four • $20 entry per team • Fundraiser"
+		})
+
+	for event_item in display_events:
 		var _event_title: String = str(event_item.get("title", {}).get("rendered", "Untitled Event"))
 		var _event_link: String = str(event_item.get("link", ""))
+		var _event_local_image: String = str(
+			event_item.get("local_image", "")
+		)
+		var _event_summary: String = str(
+			event_item.get(
+				"summary",
+				"See dates, times, and full event details on The Spot website."
+			)
+		)
+		var _event_image_url: String = ""
+		var embedded_data = event_item.get("_embedded", {})
+
+		if embedded_data is Dictionary:
+			var featured_media = embedded_data.get(
+				"wp:featuredmedia",
+				[]
+			)
+
+			if featured_media is Array and not featured_media.is_empty():
+				var media_item = featured_media[0]
+
+				if media_item is Dictionary:
+					var media_details = media_item.get(
+						"media_details",
+						{}
+					)
+					var media_sizes = media_details.get("sizes", {})
+					var phone_size = media_sizes.get(
+						"et-pb-image--responsive--phone",
+						{}
+					)
+
+					_event_image_url = str(
+						phone_size.get(
+							"source_url",
+							media_item.get("source_url", "")
+						)
+					)
 		_event_title = _event_title.replace("&#8216;", "'").replace("&#8217;", "'").replace("&#8211;", "-").replace("&#8230;", "...").replace("&amp;", "&")
 		_section(
 			_event_title,
-			"See dates, times, and full event details on The Spot website.",
+			_event_summary,
 			"VIEW EVENT",
 			_event_link
 		)
@@ -2196,7 +2492,113 @@ func show_events() -> void:
 		)
 		event_box.add_child(event_eyebrow)
 		event_box.move_child(event_eyebrow, 0)
+		if _event_local_image != "" or _event_image_url != "":
+			var flyer_frame := PanelContainer.new()
+			flyer_frame.custom_minimum_size.y = 430
+			flyer_frame.size_flags_horizontal = (
+				Control.SIZE_EXPAND_FILL
+			)
+			flyer_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			flyer_frame.clip_contents = true
 
+			var flyer_frame_style := StyleBoxFlat.new()
+			flyer_frame_style.bg_color = Color("#160207")
+			flyer_frame_style.border_color = Color("#B5273D")
+			flyer_frame_style.set_border_width_all(1)
+			flyer_frame_style.set_corner_radius_all(12)
+			flyer_frame_style.content_margin_left = 6
+			flyer_frame_style.content_margin_right = 6
+			flyer_frame_style.content_margin_top = 6
+			flyer_frame_style.content_margin_bottom = 6
+			flyer_frame.add_theme_stylebox_override(
+				"panel",
+				flyer_frame_style
+			)
+
+			event_box.add_child(flyer_frame)
+			event_box.move_child(flyer_frame, 1)
+
+			var event_flyer := TextureRect.new()
+			event_flyer.custom_minimum_size = Vector2(0, 418)
+			event_flyer.size_flags_horizontal = (
+				Control.SIZE_EXPAND_FILL
+			)
+			event_flyer.expand_mode = (
+				TextureRect.EXPAND_IGNORE_SIZE
+			)
+			event_flyer.stretch_mode = (
+				TextureRect.STRETCH_KEEP_ASPECT_COVERED
+			)
+			event_flyer.texture_filter = (
+				CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+			)
+			event_flyer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			flyer_frame.add_child(event_flyer)
+
+			if _event_local_image != "":
+				event_flyer.texture = load(_event_local_image)
+			else:
+				_load_product_image(
+					_event_image_url,
+					event_flyer
+				)
+		# Website events receive a clear date-and-time strip.
+		# The manually added Big Book card remains untouched.
+		if _event_local_image == "":
+			var schedule_panel := PanelContainer.new()
+			schedule_panel.size_flags_horizontal = (
+				Control.SIZE_EXPAND_FILL
+			)
+			schedule_panel.mouse_filter = (
+				Control.MOUSE_FILTER_IGNORE
+			)
+
+			var schedule_style := StyleBoxFlat.new()
+			schedule_style.bg_color = Color("#240409")
+			schedule_style.border_color = Color("#FFE36E")
+			schedule_style.set_border_width_all(2)
+			schedule_style.set_corner_radius_all(10)
+			schedule_style.content_margin_left = 10
+			schedule_style.content_margin_right = 10
+			schedule_style.content_margin_top = 8
+			schedule_style.content_margin_bottom = 8
+			schedule_panel.add_theme_stylebox_override(
+				"panel",
+				schedule_style
+			)
+
+			event_box.add_child(schedule_panel)
+
+			var schedule_label := Label.new()
+			schedule_label.text = "LOADING EVENT DATE..."
+			schedule_label.horizontal_alignment = (
+				HORIZONTAL_ALIGNMENT_CENTER
+			)
+			schedule_label.autowrap_mode = (
+				TextServer.AUTOWRAP_WORD_SMART
+			)
+			schedule_label.add_theme_font_size_override(
+				"font_size",
+				14
+			)
+			schedule_label.add_theme_color_override(
+				"font_color",
+				Color("#FFE36E")
+			)
+			schedule_label.mouse_filter = (
+				Control.MOUSE_FILTER_IGNORE
+			)
+			schedule_panel.add_child(schedule_label)
+
+			if _event_image_url != "":
+				event_box.move_child(schedule_panel, 2)
+			else:
+				event_box.move_child(schedule_panel, 1)
+
+			_load_event_schedule(
+				_event_link,
+				schedule_label
+			)
 		event_title.add_theme_font_size_override("font_size", 23)
 		event_title.add_theme_color_override(
 			"font_color",
@@ -2247,17 +2649,286 @@ func show_events() -> void:
 		)
 		
 func show_vip() -> void:
-	_clear("VIP MEMBERSHP")
-	_section("VIP Membership", "Join The Spot VIP and get member perks, including free admission to events. Choose the membership option that works best for you.")
-	_section(
-	"VIP Benefits",
-	"The Spot VIP Membership is for people who want to support the sober community while getting extra benefits at The Spot. VIP members receive perks such as free admission to events, special member benefits, and easier access to everything The Spot offers. Membership is available in monthly or annual options.")
-	_section(
-	"Open Membership Shop",
-	"Choose the monthly VIP option on The Spot website.",
-	"OPEN MEMBERSHIP SHOP",
-	"https://thespotlounge.com/shop/"
-)
+	_clear("VIP MEMBERSHIP")
+	title_label.visible = false
+
+	_add_page_header(
+		"VIP MEMBERSHIP",
+		"Support the community and enjoy more of The Spot.",
+		"shop",
+		"VIP"
+	)
+
+	# Main VIP feature card.
+	var vip_panel := PanelContainer.new()
+	vip_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vip_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var vip_style := StyleBoxFlat.new()
+	vip_style.bg_color = Color("#650818")
+	vip_style.border_color = Color("#FFE36E")
+	vip_style.set_border_width_all(2)
+	vip_style.border_width_left = 6
+	vip_style.set_corner_radius_all(16)
+	vip_style.shadow_color = Color(0, 0, 0, 0.70)
+	vip_style.shadow_size = 10
+	vip_style.shadow_offset = Vector2(0, 4)
+	vip_style.content_margin_left = 18
+	vip_style.content_margin_right = 18
+	vip_style.content_margin_top = 18
+	vip_style.content_margin_bottom = 18
+	vip_panel.add_theme_stylebox_override("panel", vip_style)
+	content.add_child(vip_panel)
+
+	var vip_stack := VBoxContainer.new()
+	vip_stack.add_theme_constant_override("separation", 10)
+	vip_stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vip_panel.add_child(vip_stack)
+
+	var vip_mark := Label.new()
+	vip_mark.text = "★  THE SPOT VIP  ★"
+	vip_mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vip_mark.add_theme_font_size_override("font_size", 16)
+	vip_mark.add_theme_color_override("font_color", Color("#FFE36E"))
+	vip_mark.add_theme_color_override(
+		"font_outline_color",
+		Color("#3A080E")
+	)
+	vip_mark.add_theme_constant_override("outline_size", 3)
+	vip_mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vip_stack.add_child(vip_mark)
+
+	var vip_title := Label.new()
+	vip_title.text = "MORE THAN A MEMBERSHIP"
+	vip_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vip_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vip_title.add_theme_font_size_override("font_size", 25)
+	vip_title.add_theme_color_override("font_color", Color("#FFF0B5"))
+	vip_title.add_theme_color_override(
+		"font_outline_color",
+		Color("#3A080E")
+	)
+	vip_title.add_theme_constant_override("outline_size", 3)
+	vip_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vip_stack.add_child(vip_title)
+
+	var vip_description := Label.new()
+	vip_description.text = "Become part of the community that keeps The Spot growing. VIP membership gives you special perks while supporting a welcoming place for connection, fellowship, and recovery."
+	vip_description.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vip_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vip_description.add_theme_font_size_override("font_size", 15)
+	vip_description.add_theme_color_override(
+		"font_color",
+		Color("#F5E9E1")
+	)
+	vip_description.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vip_stack.add_child(vip_description)
+
+	# Benefits card.
+	var benefits_panel := PanelContainer.new()
+	benefits_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	benefits_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var benefits_style := StyleBoxFlat.new()
+	benefits_style.bg_color = Color("#21050A")
+	benefits_style.border_color = Color("#B5273D")
+	benefits_style.set_border_width_all(2)
+	benefits_style.set_corner_radius_all(16)
+	benefits_style.shadow_color = Color(0, 0, 0, 0.65)
+	benefits_style.shadow_size = 8
+	benefits_style.shadow_offset = Vector2(0, 3)
+	benefits_style.content_margin_left = 16
+	benefits_style.content_margin_right = 16
+	benefits_style.content_margin_top = 16
+	benefits_style.content_margin_bottom = 16
+	benefits_panel.add_theme_stylebox_override(
+		"panel",
+		benefits_style
+	)
+	content.add_child(benefits_panel)
+
+	var benefits_stack := VBoxContainer.new()
+	benefits_stack.add_theme_constant_override("separation", 12)
+	benefits_stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	benefits_panel.add_child(benefits_stack)
+
+	var benefits_heading := Label.new()
+	benefits_heading.text = "VIP BENEFITS"
+	benefits_heading.add_theme_font_size_override("font_size", 21)
+	benefits_heading.add_theme_color_override(
+		"font_color",
+		Color("#FFE36E")
+	)
+	benefits_heading.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	benefits_stack.add_child(benefits_heading)
+
+	var divider := HSeparator.new()
+	divider.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	divider.add_theme_color_override(
+		"separator",
+		Color("#FFE36E")
+	)
+	benefits_stack.add_child(divider)
+
+	var benefits := [
+		[
+			"★",
+			"EVENT ACCESS",
+			"Enjoy free admission to eligible events at The Spot."
+		],
+		[
+			"◆",
+			"MEMBER PERKS",
+			"Receive special benefits created for VIP members."
+		],
+		[
+			"♥",
+			"SUPPORT THE COMMUNITY",
+			"Help The Spot remain a home for fellowship and recovery."
+		],
+		[
+			"✓",
+			"FLEXIBLE OPTIONS",
+			"Choose the monthly or annual membership that fits you."
+		]
+	]
+
+	for benefit in benefits:
+		var benefit_row := HBoxContainer.new()
+		benefit_row.add_theme_constant_override("separation", 12)
+		benefit_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		benefits_stack.add_child(benefit_row)
+
+		var benefit_badge := PanelContainer.new()
+		benefit_badge.custom_minimum_size = Vector2(46, 46)
+		benefit_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+		var badge_style := StyleBoxFlat.new()
+		badge_style.bg_color = Color("#A9152D")
+		badge_style.border_color = Color("#FFE36E")
+		badge_style.set_border_width_all(2)
+		badge_style.set_corner_radius_all(23)
+		benefit_badge.add_theme_stylebox_override(
+			"panel",
+			badge_style
+		)
+		benefit_row.add_child(benefit_badge)
+
+		var benefit_icon := Label.new()
+		benefit_icon.text = str(benefit[0])
+		benefit_icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		benefit_icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		benefit_icon.add_theme_font_size_override("font_size", 20)
+		benefit_icon.add_theme_color_override(
+			"font_color",
+			Color("#FFE36E")
+		)
+		benefit_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		benefit_badge.add_child(benefit_icon)
+
+		var benefit_text := VBoxContainer.new()
+		benefit_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		benefit_text.add_theme_constant_override("separation", 2)
+		benefit_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		benefit_row.add_child(benefit_text)
+
+		var benefit_title := Label.new()
+		benefit_title.text = str(benefit[1])
+		benefit_title.add_theme_font_size_override("font_size", 16)
+		benefit_title.add_theme_color_override(
+			"font_color",
+			Color("#FFF0B5")
+		)
+		benefit_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		benefit_text.add_child(benefit_title)
+
+		var benefit_description := Label.new()
+		benefit_description.text = str(benefit[2])
+		benefit_description.autowrap_mode = (
+			TextServer.AUTOWRAP_WORD_SMART
+		)
+		benefit_description.add_theme_font_size_override(
+			"font_size",
+			13
+		)
+		benefit_description.add_theme_color_override(
+			"font_color",
+			Color("#E8D4CE")
+		)
+		benefit_description.mouse_filter = (
+			Control.MOUSE_FILTER_IGNORE
+		)
+		benefit_text.add_child(benefit_description)
+
+	# Membership call-to-action.
+	var membership_button := Button.new()
+	membership_button.text = "VIEW MEMBERSHIP OPTIONS   ›"
+	membership_button.custom_minimum_size.y = 64
+	membership_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	membership_button.mouse_default_cursor_shape = (
+		Control.CURSOR_POINTING_HAND
+	)
+	membership_button.add_theme_font_size_override("font_size", 17)
+	membership_button.add_theme_color_override(
+		"font_color",
+		Color("#FFF0B5")
+	)
+	membership_button.add_theme_color_override(
+		"font_hover_color",
+		Color.WHITE
+	)
+	membership_button.add_theme_color_override(
+		"font_pressed_color",
+		Color.WHITE
+	)
+
+	var membership_normal := StyleBoxFlat.new()
+	membership_normal.bg_color = Color("#E30620")
+	membership_normal.border_color = Color("#FFE36E")
+	membership_normal.set_border_width_all(2)
+	membership_normal.set_corner_radius_all(14)
+	membership_normal.shadow_color = Color(0.90, 0.02, 0.12, 0.60)
+	membership_normal.shadow_size = 9
+	membership_normal.shadow_offset = Vector2(0, 3)
+	membership_button.add_theme_stylebox_override(
+		"normal",
+		membership_normal
+	)
+
+	var membership_hover := (
+		membership_normal.duplicate() as StyleBoxFlat
+	)
+	membership_hover.bg_color = Color("#FF1630")
+	membership_hover.border_color = Color("#FFF0B5")
+	membership_hover.shadow_size = 13
+	membership_button.add_theme_stylebox_override(
+		"hover",
+		membership_hover
+	)
+	membership_button.add_theme_stylebox_override(
+		"focus",
+		membership_hover
+	)
+
+	var membership_pressed := (
+		membership_normal.duplicate() as StyleBoxFlat
+	)
+	membership_pressed.bg_color = Color("#8A0B1D")
+	membership_pressed.shadow_size = 3
+	membership_button.add_theme_stylebox_override(
+		"pressed",
+		membership_pressed
+	)
+
+	membership_button.pressed.connect(
+		_open_more_link.bind("https://thespotlounge.com/shop/")
+	)
+	content.add_child(membership_button)
+
+	var bottom_space := Control.new()
+	bottom_space.custom_minimum_size.y = 90
+	bottom_space.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(bottom_space)
 
 
 
@@ -2610,18 +3281,242 @@ func _open_more_link(url: String) -> void:
 	OS.shell_open(url)
 
 func show_founders() -> void:
-	_clear("About the Founders")
-	bg.modulate = Color("#3A161A")
-	var founders_image = TextureRect.new()
-	founders_image.texture = load("res://assets/thespotfounderscorrected.png")
+	_clear("ABOUT THE FOUNDERS")
+	title_label.visible = false
+	main_scroll.scroll_vertical = 0
+
+	_add_page_header(
+		"ABOUT THE FOUNDERS",
+		"The people and purpose behind The Spot.",
+		"meetings",
+		"OUR\nSTORY"
+	)
+
+	# Framed founders photograph.
+	var founders_frame := PanelContainer.new()
+	founders_frame.custom_minimum_size.y = 410
+	founders_frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	founders_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	founders_frame.modulate.a = 0.0
+	founders_frame.scale = Vector2(0.98, 0.98)
+
+	var frame_style := StyleBoxFlat.new()
+	frame_style.bg_color = Color("#180207")
+	frame_style.border_color = Color("#FFE36E")
+	frame_style.set_border_width_all(3)
+	frame_style.set_corner_radius_all(16)
+	frame_style.shadow_color = Color(0, 0, 0, 0.75)
+	frame_style.shadow_size = 12
+	frame_style.shadow_offset = Vector2(0, 5)
+	frame_style.content_margin_left = 8
+	frame_style.content_margin_right = 8
+	frame_style.content_margin_top = 8
+	frame_style.content_margin_bottom = 8
+	founders_frame.add_theme_stylebox_override("panel", frame_style)
+	content.add_child(founders_frame)
+
+	var founders_image := TextureRect.new()
+	founders_image.texture = load(
+		"res://assets/thespotfounderscorrected.png"
+	)
+	founders_image.custom_minimum_size = Vector2(0, 394)
 	founders_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	founders_image.custom_minimum_size = Vector2(0, 420)
-	founders_image.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content.add_child(founders_image)
-	content.add_spacer(false)
 	founders_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_section("Bryan Moore & Stefan Tyler", "Founders of The Spot Sober Lounge\n\nBuilt around fellowship, connection, and creating a place where recovery can feel like life again.")
-	_section("Why The Spot Exists", "Recovery should be about more than simply staying sober. The Spot was created to give people a place to belong — somewhere to attend meetings, work steps, build friendships, laugh, have fun, and experience life in recovery together. Whether someone has one day sober or many years, the goal is the same: walk in, feel welcome, and know you have a place here.")
+	founders_image.texture_filter = (
+		CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	)
+	founders_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	founders_frame.add_child(founders_image)
+
+	_animate_section(founders_frame)
+
+	# Founder names and identity card.
+	var names_panel := PanelContainer.new()
+	names_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	names_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	names_panel.modulate.a = 0.0
+	names_panel.scale = Vector2(0.98, 0.98)
+
+	var names_style := StyleBoxFlat.new()
+	names_style.bg_color = Color("#650818")
+	names_style.border_color = Color("#FFE36E")
+	names_style.set_border_width_all(2)
+	names_style.border_width_left = 6
+	names_style.set_corner_radius_all(15)
+	names_style.shadow_color = Color(0, 0, 0, 0.68)
+	names_style.shadow_size = 9
+	names_style.shadow_offset = Vector2(0, 4)
+	names_style.content_margin_left = 18
+	names_style.content_margin_right = 18
+	names_style.content_margin_top = 16
+	names_style.content_margin_bottom = 16
+	names_panel.add_theme_stylebox_override("panel", names_style)
+	content.add_child(names_panel)
+
+	var names_stack := VBoxContainer.new()
+	names_stack.add_theme_constant_override("separation", 5)
+	names_stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	names_panel.add_child(names_stack)
+
+	var founders_badge := Label.new()
+	founders_badge.text = "FOUNDERS OF THE SPOT"
+	founders_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	founders_badge.add_theme_font_size_override("font_size", 12)
+	founders_badge.add_theme_color_override(
+		"font_color",
+		Color("#FFE36E")
+	)
+	founders_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	names_stack.add_child(founders_badge)
+
+	var founders_names := Label.new()
+	founders_names.text = "BRYAN MOORE & STEFAN TYLER"
+	founders_names.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	founders_names.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	founders_names.add_theme_font_size_override("font_size", 23)
+	founders_names.add_theme_color_override(
+		"font_color",
+		Color("#FFF0B5")
+	)
+	founders_names.add_theme_color_override(
+		"font_outline_color",
+		Color("#3A080E")
+	)
+	founders_names.add_theme_constant_override("outline_size", 3)
+	founders_names.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	names_stack.add_child(founders_names)
+
+	var founders_subtitle := Label.new()
+	founders_subtitle.text = "Built around fellowship, connection, and the belief that recovery can feel like life again."
+	founders_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	founders_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	founders_subtitle.add_theme_font_size_override("font_size", 15)
+	founders_subtitle.add_theme_color_override(
+		"font_color",
+		Color("#F5E9E1")
+	)
+	founders_subtitle.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	names_stack.add_child(founders_subtitle)
+
+	_animate_section(names_panel)
+
+	# The story card.
+	var story_panel := PanelContainer.new()
+	story_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	story_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	story_panel.modulate.a = 0.0
+	story_panel.scale = Vector2(0.98, 0.98)
+
+	var story_style := StyleBoxFlat.new()
+	story_style.bg_color = Color("#21050A")
+	story_style.border_color = Color("#B5273D")
+	story_style.set_border_width_all(2)
+	story_style.set_corner_radius_all(15)
+	story_style.shadow_color = Color(0, 0, 0, 0.65)
+	story_style.shadow_size = 8
+	story_style.shadow_offset = Vector2(0, 3)
+	story_style.content_margin_left = 18
+	story_style.content_margin_right = 18
+	story_style.content_margin_top = 17
+	story_style.content_margin_bottom = 17
+	story_panel.add_theme_stylebox_override("panel", story_style)
+	content.add_child(story_panel)
+
+	var story_stack := VBoxContainer.new()
+	story_stack.add_theme_constant_override("separation", 10)
+	story_stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	story_panel.add_child(story_stack)
+
+	var story_heading := Label.new()
+	story_heading.text = "WHY THE SPOT EXISTS"
+	story_heading.add_theme_font_size_override("font_size", 21)
+	story_heading.add_theme_color_override(
+		"font_color",
+		Color("#FFE36E")
+	)
+	story_heading.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	story_stack.add_child(story_heading)
+
+	var story_divider := HSeparator.new()
+	story_divider.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	story_divider.add_theme_color_override(
+		"separator",
+		Color("#E30620")
+	)
+	story_stack.add_child(story_divider)
+
+	var story_text := Label.new()
+	story_text.text = "Recovery should be about more than simply staying sober. The Spot was created to give people a place to belong—somewhere to attend meetings, work steps, build friendships, laugh, have fun, and experience life in recovery together."
+	story_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	story_text.add_theme_font_size_override("font_size", 15)
+	story_text.add_theme_color_override(
+		"font_color",
+		Color("#F5E9E1")
+	)
+	story_text.add_theme_constant_override("line_spacing", 5)
+	story_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	story_stack.add_child(story_text)
+
+	var welcome_text := Label.new()
+	welcome_text.text = "Whether someone has one day sober or many years, the goal is the same: walk in, feel welcome, and know you have a place here."
+	welcome_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	welcome_text.add_theme_font_size_override("font_size", 15)
+	welcome_text.add_theme_color_override(
+		"font_color",
+		Color("#FFF0B5")
+	)
+	welcome_text.add_theme_constant_override("line_spacing", 5)
+	welcome_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	story_stack.add_child(welcome_text)
+
+	_animate_section(story_panel)
+
+	# Closing statement.
+	var quote_panel := PanelContainer.new()
+	quote_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	quote_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	quote_panel.modulate.a = 0.0
+	quote_panel.scale = Vector2(0.98, 0.98)
+
+	var quote_style := StyleBoxFlat.new()
+	quote_style.bg_color = Color("#8A0B1D")
+	quote_style.border_color = Color("#FFE36E")
+	quote_style.set_border_width_all(2)
+	quote_style.set_corner_radius_all(15)
+	quote_style.shadow_color = Color(0.90, 0.02, 0.12, 0.45)
+	quote_style.shadow_size = 10
+	quote_style.shadow_offset = Vector2(0, 3)
+	quote_style.content_margin_left = 18
+	quote_style.content_margin_right = 18
+	quote_style.content_margin_top = 18
+	quote_style.content_margin_bottom = 18
+	quote_panel.add_theme_stylebox_override("panel", quote_style)
+	content.add_child(quote_panel)
+
+	var quote_label := Label.new()
+	quote_label.text = "“WALK IN. FEEL WELCOME.\nKNOW YOU HAVE A PLACE HERE.”"
+	quote_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	quote_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	quote_label.add_theme_font_size_override("font_size", 19)
+	quote_label.add_theme_color_override(
+		"font_color",
+		Color("#FFF0B5")
+	)
+	quote_label.add_theme_color_override(
+		"font_outline_color",
+		Color("#3A080E")
+	)
+	quote_label.add_theme_constant_override("outline_size", 3)
+	quote_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	quote_panel.add_child(quote_label)
+
+	_animate_section(quote_panel)
+
+	var bottom_space := Control.new()
+	bottom_space.custom_minimum_size.y = 90
+	bottom_space.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(bottom_space)
+
 func _on_main_scroll_gui_input(event: InputEvent) -> void:
 	if event is InputEventScreenDrag:
 		var max_scroll: float = maxf(0.0, main_scroll.get_v_scroll_bar().max_value - main_scroll.get_v_scroll_bar().page)
