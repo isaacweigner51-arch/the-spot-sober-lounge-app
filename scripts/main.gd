@@ -983,6 +983,194 @@ func _animate_section(panel: Control) -> void:
 	tween.tween_property(panel, "modulate:a", 1.0, 0.22)
 	tween.tween_property(panel, "scale", Vector2.ONE, 0.22)
 
+func _show_map_choice() -> void:
+	var apple_maps_url := (
+		"https://maps.apple.com/?daddr="
+		+ "4220+W+Northern+Ave,+Suite+111,+Phoenix,+AZ"
+	)
+
+	var google_maps_url := (
+		"https://www.google.com/maps/dir/?api=1&destination="
+		+ "4220+W+Northern+Ave,+Suite+111,+Phoenix,+AZ"
+	)
+
+	# Android continues directly to Google Maps.
+	if OS.has_feature("android"):
+		OS.shell_open(google_maps_url)
+		return
+
+	var map_dialog := ConfirmationDialog.new()
+	map_dialog.title = ""
+	map_dialog.dialog_text = (
+		"CHOOSE YOUR MAP\n"
+		+ "How would you like to get directions to The Spot?"
+	)
+	map_dialog.ok_button_text = "APPLE MAPS"
+	map_dialog.cancel_button_text = "CANCEL"
+	map_dialog.exclusive = true
+	map_dialog.borderless = true
+	map_dialog.unresizable = true
+
+	var google_button: Button = map_dialog.add_button(
+		"GOOGLE MAPS",
+		false,
+		"google_maps"
+	)
+
+	add_child(map_dialog)
+
+	var dialog_style := StyleBoxFlat.new()
+	dialog_style.bg_color = Color("#35060E")
+	dialog_style.border_color = Color("#FFE36E")
+	dialog_style.set_border_width_all(3)
+	dialog_style.set_corner_radius_all(18)
+	dialog_style.shadow_color = Color(0, 0, 0, 0.80)
+	dialog_style.shadow_size = 16
+	dialog_style.shadow_offset = Vector2(0, 5)
+	dialog_style.content_margin_left = 18
+	dialog_style.content_margin_right = 18
+	dialog_style.content_margin_top = 18
+	dialog_style.content_margin_bottom = 16
+	map_dialog.add_theme_stylebox_override(
+		"panel",
+		dialog_style
+	)
+
+	var map_message := map_dialog.get_label()
+	map_message.autowrap_mode = (
+		TextServer.AUTOWRAP_WORD_SMART
+	)
+	map_message.horizontal_alignment = (
+		HORIZONTAL_ALIGNMENT_CENTER
+	)
+	map_message.vertical_alignment = (
+		VERTICAL_ALIGNMENT_CENTER
+	)
+	map_message.add_theme_font_size_override(
+		"font_size",
+		17
+	)
+	map_message.add_theme_color_override(
+		"font_color",
+		Color("#FFF0B5")
+	)
+	map_message.add_theme_color_override(
+		"font_outline_color",
+		Color("#5B0715")
+	)
+	map_message.add_theme_constant_override(
+		"outline_size",
+		3
+	)
+
+	var apple_button := map_dialog.get_ok_button()
+	var cancel_button := map_dialog.get_cancel_button()
+
+	var choice_normal := StyleBoxFlat.new()
+	choice_normal.bg_color = Color("#E30620")
+	choice_normal.border_color = Color("#FFE36E")
+	choice_normal.set_border_width_all(2)
+	choice_normal.set_corner_radius_all(10)
+	choice_normal.content_margin_left = 10
+	choice_normal.content_margin_right = 10
+	choice_normal.content_margin_top = 10
+	choice_normal.content_margin_bottom = 10
+
+	var choice_hover := (
+		choice_normal.duplicate() as StyleBoxFlat
+	)
+	choice_hover.bg_color = Color("#FF1733")
+	choice_hover.border_color = Color("#FFF0B5")
+
+	var choice_pressed := (
+		choice_normal.duplicate() as StyleBoxFlat
+	)
+	choice_pressed.bg_color = Color("#8A0B1D")
+
+	var map_choice_buttons: Array[Button] = [
+		apple_button,
+		google_button
+	]
+
+	for choice_button in map_choice_buttons:
+		choice_button.add_theme_font_size_override(
+			"font_size",
+			13
+		)
+		choice_button.add_theme_color_override(
+			"font_color",
+			Color("#FFF0B5")
+		)
+		choice_button.add_theme_color_override(
+			"font_hover_color",
+			Color.WHITE
+		)
+		choice_button.add_theme_stylebox_override(
+			"normal",
+			choice_normal
+		)
+		choice_button.add_theme_stylebox_override(
+			"hover",
+			choice_hover
+		)
+		choice_button.add_theme_stylebox_override(
+			"focus",
+			choice_hover
+		)
+		choice_button.add_theme_stylebox_override(
+			"pressed",
+			choice_pressed
+		)
+
+	var cancel_style := (
+		choice_normal.duplicate() as StyleBoxFlat
+	)
+	cancel_style.bg_color = Color("#210409")
+	cancel_style.border_color = Color("#B5273D")
+
+	cancel_button.add_theme_font_size_override(
+		"font_size",
+		13
+	)
+	cancel_button.add_theme_color_override(
+		"font_color",
+		Color("#E8D4CE")
+	)
+	cancel_button.add_theme_stylebox_override(
+		"normal",
+		cancel_style
+	)
+	cancel_button.add_theme_stylebox_override(
+		"hover",
+		choice_hover
+	)
+	cancel_button.add_theme_stylebox_override(
+		"focus",
+		choice_hover
+	)
+
+	map_dialog.confirmed.connect(
+		func() -> void:
+			OS.shell_open(apple_maps_url)
+			map_dialog.queue_free()
+	)
+
+	map_dialog.custom_action.connect(
+		func(action: StringName) -> void:
+			if action == &"google_maps":
+				OS.shell_open(google_maps_url)
+
+			map_dialog.queue_free()
+	)
+
+	map_dialog.canceled.connect(
+		map_dialog.queue_free
+	)
+
+	map_dialog.popup_centered(
+		Vector2i(340, 280)
+	)
+
 
 func _section(text: String, body: String, button_text := "", url := "") -> void:
 	var panel := PanelContainer.new()
@@ -1581,6 +1769,33 @@ func show_home() -> void:
 	var visit_feature := content.get_child(
 		content.get_child_count() - 1
 	) as PanelContainer
+	var directions_section_box := (
+		visit_feature.get_child(0) as VBoxContainer
+	)
+
+	var map_choice_button: Button = null
+
+	for directions_child in directions_section_box.get_children():
+		if directions_child is Button:
+			map_choice_button = directions_child as Button
+			break
+
+	if map_choice_button != null:
+		for direction_connection in (
+			map_choice_button.pressed.get_connections()
+		):
+			var connected_callable: Callable = (
+				direction_connection["callable"]
+			)
+
+			map_choice_button.pressed.disconnect(
+				connected_callable
+			)
+
+		map_choice_button.pressed.connect(
+			_show_map_choice
+		)
+
 
 	var visit_style := StyleBoxFlat.new()
 	visit_style.bg_color = Color("#3F0710")
