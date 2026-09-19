@@ -1533,7 +1533,7 @@ func show_home() -> void:
 				detail_text += meeting_room
 
 			var meeting_row := PanelContainer.new()
-			meeting_row.mouse_filter = Control.MOUSE_FILTER_PASS
+			meeting_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			meeting_row.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 			meeting_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
@@ -1976,7 +1976,7 @@ func _build_today_at_spot_card(today: String) -> void:
 
 			var meeting_row := PanelContainer.new()
 			meeting_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			meeting_row.mouse_filter = Control.MOUSE_FILTER_PASS
+			meeting_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			meeting_row.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 			var row_style := StyleBoxFlat.new()
