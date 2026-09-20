@@ -1887,6 +1887,7 @@ func show_home() -> void:
 
 func _build_today_at_spot_card(today: String) -> void:
 	var today_card := PanelContainer.new()
+	today_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	today_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	today_card.modulate.a = 0.0
 	today_card.scale = Vector2(0.98, 0.98)
@@ -2064,6 +2065,9 @@ func _build_today_at_spot_card(today: String) -> void:
 			card_box.add_child(empty_text)
 
 	var schedule_button := Button.new()
+	schedule_button.mouse_filter = Control.MOUSE_FILTER_PASS
+	schedule_button.mouse_force_pass_scroll_events = true
+	schedule_button.focus_mode = Control.FOCUS_NONE
 	schedule_button.text = "VIEW TODAY'S FULL SCHEDULE"
 	schedule_button.custom_minimum_size = Vector2(0, 56)
 	schedule_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -2091,7 +2095,17 @@ func _build_today_at_spot_card(today: String) -> void:
 	schedule_button.add_theme_stylebox_override("pressed", pressed_style)
 	schedule_button.pressed.connect(_open_today_meetings.bind(today))
 	card_box.add_child(schedule_button)
+	
+	# Let every non-button part of this card pass swipes to main_scroll.
+	today_card.propagate_call(
+		"set_mouse_filter",
+		[Control.MOUSE_FILTER_IGNORE],
+		true
+	)
 
+# Keep the schedule button tappable while allowing events to pass upward.
+	schedule_button.mouse_filter = Control.MOUSE_FILTER_PASS
+	schedule_button.mouse_force_pass_scroll_events = true
 
 func _animate_home_logo(logo: TextureRect) -> void:
 	if not is_instance_valid(logo):
