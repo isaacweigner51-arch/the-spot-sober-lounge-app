@@ -1,0 +1,2 @@
+-keep class org.godotengine.godot.** { *; }
+-dontwarn org.godotengine.godot.**

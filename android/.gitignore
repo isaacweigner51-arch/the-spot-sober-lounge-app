@@ -1,0 +1,7 @@
+build/.gradle/
+build/build/
+build/.cxx/
+build/local.properties
+build/assetPackInstallTime/build/
+build/assetPackInstallTime/src/main/assets/
+build/libs/
