@@ -10,6 +10,11 @@ const SHOP_API_URL := "https://thespotlounge.com/wp-json/wc/store/v1/products?pe
 const EVENTS_URL := "https://thespotlounge.com/wp-json/wp/v2/event?per_page=100&_embed=1"
 const MEMBERSHIP_API_URL := "https://thespotlounge.com/wp-json/wp/v2/search?search=Monthly&subtype=product&per_page=100"
 const MEETINGS_API_URL := "https://thespotlounge.com/wp-json/wp/v2/pages?slug=meetings"
+const ANDROID_VERSION_CODE := 7
+const ANDROID_UPDATE_URL := "https://isaacweigner51-arch.github.io/the-spot-sober-lounge-app/docs/android-update.json"
+const ANDROID_STORE_URL := "https://play.google.com/store/apps/details?id=com.thespot.soberlounge"
+const IOS_VERSION_CODE := 6
+const IOS_STORE_URL := "https://apps.apple.com/app/id6812567344"
 
 
 var shop_request: HTTPRequest
@@ -32,25 +37,32 @@ var bg: TextureRect
 var background_music_player: AudioStreamPlayer
 var background_music_enabled := true
 var background_music_started := false
+var update_request: HTTPRequest
+var update_check_is_manual := false
 
 
 func _ready() -> void:
 	shop_request = HTTPRequest.new()
 	add_child(shop_request)
 	shop_request.request_completed.connect(_on_shop_request_completed)
-	
+
 	events_request = HTTPRequest.new()
 	add_child(events_request)
 	events_request.request_completed.connect(_on_events_request_completed)
-	
+
 	membership_request = HTTPRequest.new()
 	add_child(membership_request)
 	membership_request.request_completed.connect(_on_membership_request_completed)
-	
+
 	meetings_request = HTTPRequest.new()
 	add_child(meetings_request)
 	meetings_request.request_completed.connect(_on_meetings_request_completed)
-	
+
+	update_request = HTTPRequest.new()
+	update_request.timeout = 8.0
+	add_child(update_request)
+	update_request.request_completed.connect(_on_update_request_completed)
+
 	_load_cached_live_data()
 	_build_shell()
 	show_home()
@@ -59,6 +71,9 @@ func _ready() -> void:
 
 	if not events_data.is_empty():
 		events_request.request(EVENTS_URL)
+
+	if OS.get_name() == "Android" or OS.get_name() == "iOS":
+		_check_for_app_update.call_deferred(false)
 
 func _show_opening_screen() -> void:
 	var splash := Control.new()
@@ -3320,6 +3335,16 @@ func show_more() -> void:
 		)
 	)
 
+	if OS.get_name() == "Android" or OS.get_name() == "iOS" or OS.has_feature("editor"):
+		menu_box.add_child(
+			_more_action_button(
+				"↻",
+				"CHECK FOR UPDATES",
+				"See whether a newer version is available.",
+				_check_for_app_update.bind(true)
+			)
+		)
+
 	menu_box.add_child(
 		_more_action_button(
 			"i",
@@ -3355,7 +3380,8 @@ func show_more() -> void:
 	contact_panel.add_child(contact_info)
 
 	var version_label := Label.new()
-	version_label.text = "THE SPOT SOBER LOUNGE • VERSION 1.0"
+	var displayed_version := "7.0.0" if OS.get_name() == "Android" else "1.1"
+	version_label.text = "THE SPOT SOBER LOUNGE • VERSION " + displayed_version
 	version_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	version_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	version_label.add_theme_font_size_override("font_size", 11)
@@ -4272,3 +4298,177 @@ func _add_background_music_control() -> void:
 	)
 	music_toggle.toggled.connect(_set_background_music_enabled)
 	music_panel.add_child(music_toggle)
+
+func _get_update_platform() -> String:
+	if OS.get_name() == "Android":
+		return "android"
+	if OS.get_name() == "iOS":
+		return "ios"
+	if OS.has_feature("editor"):
+		return "android"
+	return ""
+
+
+func _check_for_app_update(manual: bool = true) -> void:
+	var platform_key := _get_update_platform()
+
+	if platform_key.is_empty():
+		if manual:
+			_show_update_message(
+				"Update checking",
+				"Update checking is available on iPhone and Android."
+			)
+		return
+
+	if not is_instance_valid(update_request):
+		if manual:
+			_show_update_message(
+				"Unable to check",
+				"The update service is not available right now."
+			)
+		return
+
+	if update_request.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
+		if manual:
+			_show_update_message(
+				"Checking for updates",
+				"An update check is already in progress."
+			)
+		return
+
+	update_check_is_manual = manual
+	var cache_buster := str(Time.get_unix_time_from_system())
+	var request_error := update_request.request(
+		ANDROID_UPDATE_URL + "?time=" + cache_buster
+	)
+
+	if request_error != OK:
+		update_check_is_manual = false
+		if manual:
+			_show_update_message(
+				"Unable to check",
+				"Please check your internet connection and try again."
+			)
+
+
+func _on_update_request_completed(
+	result: int,
+	response_code: int,
+	_headers: PackedStringArray,
+	body: PackedByteArray
+) -> void:
+	var manual_check := update_check_is_manual
+	update_check_is_manual = false
+
+	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
+		if manual_check:
+			_show_update_message(
+				"Unable to check",
+				"Could not reach the update service. Please try again later."
+			)
+		return
+
+	var update_data = JSON.parse_string(body.get_string_from_utf8())
+
+	if typeof(update_data) != TYPE_DICTIONARY:
+		if manual_check:
+			_show_update_message(
+				"Unable to check",
+				"The update information could not be read."
+			)
+		return
+
+	var platform_key := _get_update_platform()
+	var platform_data = update_data.get(platform_key, {})
+
+	if typeof(platform_data) != TYPE_DICTIONARY:
+		if manual_check:
+			_show_update_message(
+				"Unable to check",
+				"Update information is unavailable for this device."
+			)
+		return
+
+	var current_version_code := (
+		ANDROID_VERSION_CODE
+		if platform_key == "android"
+		else IOS_VERSION_CODE
+	)
+	var current_version_name := (
+		"7.0.0"
+		if platform_key == "android"
+		else "1.1"
+	)
+	var default_store_url := (
+		ANDROID_STORE_URL
+		if platform_key == "android"
+		else IOS_STORE_URL
+	)
+
+	var latest_version_code := int(
+		platform_data.get("latest_version_code", current_version_code)
+	)
+	var latest_version_name := str(
+		platform_data.get("latest_version_name", current_version_name)
+	)
+	var release_notes := str(platform_data.get("release_notes", ""))
+	var store_url := str(
+		platform_data.get("store_url", default_store_url)
+	)
+
+	if latest_version_code > current_version_code:
+		_show_update_available(
+			latest_version_name,
+			release_notes,
+			store_url
+		)
+	elif manual_check:
+		_show_update_message(
+			"You're up to date",
+			"The Spot Sober Lounge %s is the newest version."
+			% current_version_name
+		)
+
+
+func _show_update_available(
+	version_name: String,
+	release_notes: String,
+	store_url: String
+) -> void:
+	var dialog := ConfirmationDialog.new()
+	dialog.title = "Update available"
+	dialog.ok_button_text = (
+		"OPEN APP STORE"
+		if OS.get_name() == "iOS"
+		else "OPEN GOOGLE PLAY"
+	)
+	dialog.cancel_button_text = "LATER"
+
+
+	var message := "A newer version of The Spot Sober Lounge is available."
+	if not version_name.is_empty():
+		message = "Version %s is now available." % version_name
+	if not release_notes.is_empty():
+		message += "\n\n" + release_notes
+
+	dialog.dialog_text = message
+	add_child(dialog)
+	dialog.confirmed.connect(_open_app_store.bind(store_url))
+	dialog.confirmed.connect(dialog.queue_free)
+	dialog.canceled.connect(dialog.queue_free)
+	dialog.popup_centered(Vector2i(620, 360))
+
+
+func _show_update_message(title: String, message: String) -> void:
+	var dialog := AcceptDialog.new()
+	dialog.title = title
+	dialog.dialog_text = message
+	dialog.ok_button_text = "OK"
+	add_child(dialog)
+	dialog.confirmed.connect(dialog.queue_free)
+	dialog.canceled.connect(dialog.queue_free)
+	dialog.popup_centered(Vector2i(560, 280))
+
+
+func _open_app_store(store_url: String) -> void:
+	OS.shell_open(store_url)
