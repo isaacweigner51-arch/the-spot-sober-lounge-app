@@ -1,0 +1,14 @@
+{
+  "android": {
+    "latest_version_code": 6,
+    "latest_version_name": "6.0.0",
+    "release_notes": "Background music and performance improvements.",
+    "store_url": "https://play.google.com/store/apps/details?id=com.thespot.soberlounge"
+  },
+  "ios": {
+    "latest_version_code": 5,
+    "latest_version_name": "1.0",
+    "release_notes": "The latest App Store version of The Spot Sober Lounge.",
+    "store_url": "https://apps.apple.com/app/id6812567344"
+  }
+}

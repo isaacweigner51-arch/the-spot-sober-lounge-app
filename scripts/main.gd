@@ -10,6 +10,11 @@ const SHOP_API_URL := "https://thespotlounge.com/wp-json/wc/store/v1/products?pe
 const EVENTS_URL := "https://thespotlounge.com/wp-json/wp/v2/event?per_page=100&_embed=1"
 const MEMBERSHIP_API_URL := "https://thespotlounge.com/wp-json/wp/v2/search?search=Monthly&subtype=product&per_page=100"
 const MEETINGS_API_URL := "https://thespotlounge.com/wp-json/wp/v2/pages?slug=meetings"
+const ANDROID_VERSION_CODE := 7
+const ANDROID_UPDATE_URL := "https://isaacweigner51-arch.github.io/the-spot-sober-lounge-app/docs/android-update.json"
+const ANDROID_STORE_URL := "https://play.google.com/store/apps/details?id=com.thespot.soberlounge"
+const IOS_VERSION_CODE := 6
+const IOS_STORE_URL := "https://apps.apple.com/app/id6812567344"
 
 
 var shop_request: HTTPRequest
@@ -32,25 +37,32 @@ var bg: TextureRect
 var background_music_player: AudioStreamPlayer
 var background_music_enabled := true
 var background_music_started := false
+var update_request: HTTPRequest
+var update_check_is_manual := false
 
 
 func _ready() -> void:
 	shop_request = HTTPRequest.new()
 	add_child(shop_request)
 	shop_request.request_completed.connect(_on_shop_request_completed)
-	
+
 	events_request = HTTPRequest.new()
 	add_child(events_request)
 	events_request.request_completed.connect(_on_events_request_completed)
-	
+
 	membership_request = HTTPRequest.new()
 	add_child(membership_request)
 	membership_request.request_completed.connect(_on_membership_request_completed)
-	
+
 	meetings_request = HTTPRequest.new()
 	add_child(meetings_request)
 	meetings_request.request_completed.connect(_on_meetings_request_completed)
-	
+
+	update_request = HTTPRequest.new()
+	update_request.timeout = 8.0
+	add_child(update_request)
+	update_request.request_completed.connect(_on_update_request_completed)
+
 	_load_cached_live_data()
 	_build_shell()
 	show_home()
@@ -59,6 +71,9 @@ func _ready() -> void:
 
 	if not events_data.is_empty():
 		events_request.request(EVENTS_URL)
+
+	if OS.get_name() == "Android" or OS.get_name() == "iOS":
+		_check_for_app_update.call_deferred(false)
 
 func _show_opening_screen() -> void:
 	var splash := Control.new()
@@ -1537,7 +1552,7 @@ func show_home() -> void:
 				detail_text += meeting_room
 
 			var meeting_row := PanelContainer.new()
-			meeting_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			meeting_row.mouse_filter = Control.MOUSE_FILTER_PASS
 			meeting_row.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 			meeting_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
@@ -1981,7 +1996,7 @@ func _build_today_at_spot_card(today: String) -> void:
 
 			var meeting_row := PanelContainer.new()
 			meeting_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			meeting_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			meeting_row.mouse_filter = Control.MOUSE_FILTER_PASS
 			meeting_row.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 			var row_style := StyleBoxFlat.new()
@@ -3320,6 +3335,16 @@ func show_more() -> void:
 		)
 	)
 
+	if OS.get_name() == "Android" or OS.get_name() == "iOS" or OS.has_feature("editor"):
+		menu_box.add_child(
+			_more_action_button(
+				"↻",
+				"CHECK FOR UPDATES",
+				"See whether a newer version is available.",
+				_check_for_app_update.bind(true)
+			)
+		)
+
 	menu_box.add_child(
 		_more_action_button(
 			"i",
@@ -3355,7 +3380,8 @@ func show_more() -> void:
 	contact_panel.add_child(contact_info)
 
 	var version_label := Label.new()
-	version_label.text = "THE SPOT SOBER LOUNGE • VERSION 1.0"
+	var displayed_version := "7.0.0" if OS.get_name() == "Android" else "1.1"
+	version_label.text = "THE SPOT SOBER LOUNGE • VERSION " + displayed_version
 	version_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	version_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	version_label.add_theme_font_size_override("font_size", 11)
@@ -4272,3 +4298,284 @@ func _add_background_music_control() -> void:
 	)
 	music_toggle.toggled.connect(_set_background_music_enabled)
 	music_panel.add_child(music_toggle)
+
+func _get_update_platform() -> String:
+	if OS.get_name() == "Android":
+		return "android"
+	if OS.get_name() == "iOS":
+		return "ios"
+	if OS.has_feature("editor"):
+		return "android"
+	return ""
+
+
+func _check_for_app_update(manual: bool = true) -> void:
+	var platform_key := _get_update_platform()
+
+	if platform_key.is_empty():
+		if manual:
+			_show_update_message(
+				"Update checking",
+				"Update checking is available on iPhone and Android."
+			)
+		return
+
+	if not is_instance_valid(update_request):
+		if manual:
+			_show_update_message(
+				"Unable to check",
+				"The update service is not available right now."
+			)
+		return
+
+	if update_request.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
+		if manual:
+			_show_update_message(
+				"Checking for updates",
+				"An update check is already in progress."
+			)
+		return
+
+	update_check_is_manual = manual
+	var cache_buster := str(Time.get_unix_time_from_system())
+	var request_error := update_request.request(
+		ANDROID_UPDATE_URL + "?time=" + cache_buster
+	)
+
+	if request_error != OK:
+		update_check_is_manual = false
+		if manual:
+			_show_update_message(
+				"Unable to check",
+				"Please check your internet connection and try again."
+			)
+
+
+func _on_update_request_completed(
+	result: int,
+	response_code: int,
+	_headers: PackedStringArray,
+	body: PackedByteArray
+) -> void:
+	var manual_check := update_check_is_manual
+	update_check_is_manual = false
+
+	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
+		if manual_check:
+			_show_update_message(
+				"Unable to check",
+				"Could not reach the update service. Please try again later."
+			)
+		return
+
+	var update_data = JSON.parse_string(body.get_string_from_utf8())
+
+	if typeof(update_data) != TYPE_DICTIONARY:
+		if manual_check:
+			_show_update_message(
+				"Unable to check",
+				"The update information could not be read."
+			)
+		return
+
+	var platform_key := _get_update_platform()
+	var platform_data = update_data.get(platform_key, {})
+
+	if typeof(platform_data) != TYPE_DICTIONARY:
+		if manual_check:
+			_show_update_message(
+				"Unable to check",
+				"Update information is unavailable for this device."
+			)
+		return
+
+	var current_version_code := (
+		ANDROID_VERSION_CODE
+		if platform_key == "android"
+		else IOS_VERSION_CODE
+	)
+	var current_version_name := (
+		"7.0.0"
+		if platform_key == "android"
+		else "1.1"
+	)
+	var default_store_url := (
+		ANDROID_STORE_URL
+		if platform_key == "android"
+		else IOS_STORE_URL
+	)
+
+	var latest_version_code := int(
+		platform_data.get("latest_version_code", current_version_code)
+	)
+	var latest_version_name := str(
+		platform_data.get("latest_version_name", current_version_name)
+	)
+	var release_notes := str(platform_data.get("release_notes", ""))
+	var store_url := str(
+		platform_data.get("store_url", default_store_url)
+	)
+
+	if latest_version_code > current_version_code:
+		_show_update_available(
+			latest_version_name,
+			release_notes,
+			store_url
+		)
+	elif manual_check:
+		_show_update_message(
+			"You're up to date",
+			"The Spot Sober Lounge %s is the newest version."
+			% current_version_name
+		)
+
+
+func _show_update_available(
+	version_name: String,
+	release_notes: String,
+	store_url: String
+) -> void:
+	var message := "A newer version of The Spot Sober Lounge is available."
+	if not version_name.is_empty():
+		message = "Version %s is now available." % version_name
+	if not release_notes.is_empty():
+		message += "\n\n" + release_notes
+
+	var store_button_text := (
+		"OPEN APP STORE"
+		if OS.get_name() == "iOS"
+		else "OPEN GOOGLE PLAY"
+	)
+
+	_show_branded_update_popup(
+		"UPDATE AVAILABLE",
+		message,
+		store_button_text,
+		store_url,
+		true
+	)
+
+
+func _show_update_message(title: String, message: String) -> void:
+	_show_branded_update_popup(title, message, "OK", "", false)
+
+
+func _show_branded_update_popup(
+	title_text: String,
+	message_text: String,
+	primary_text: String,
+	store_url: String,
+	show_later: bool
+) -> void:
+	var overlay := Control.new()
+	overlay.name = "UpdatePopup"
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.z_index = 2000
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(overlay)
+
+	var backdrop := ColorRect.new()
+	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	backdrop.color = Color(0, 0, 0, 0.72)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay.add_child(backdrop)
+
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.add_child(center)
+
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size.x = minf(
+		460.0,
+		get_viewport_rect().size.x - 40.0
+	)
+
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = Color("#4A0612")
+	panel_style.border_color = Color("#FFE36E")
+	panel_style.set_border_width_all(2)
+	panel_style.set_corner_radius_all(16)
+	panel_style.content_margin_left = 20
+	panel_style.content_margin_right = 20
+	panel_style.content_margin_top = 20
+	panel_style.content_margin_bottom = 20
+	panel.add_theme_stylebox_override("panel", panel_style)
+	center.add_child(panel)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 14)
+	panel.add_child(box)
+
+	var title := Label.new()
+	title.text = title_text
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.add_theme_font_size_override("font_size", 21)
+	title.add_theme_color_override("font_color", Color("#FFF0B5"))
+	box.add_child(title)
+
+	var divider := ColorRect.new()
+	divider.color = Color("#E30620")
+	divider.custom_minimum_size.y = 3
+	box.add_child(divider)
+
+	var message := Label.new()
+	message.text = message_text
+	message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	message.add_theme_font_size_override("font_size", 16)
+	message.add_theme_color_override("font_color", Color("#FFF7F0"))
+	box.add_child(message)
+
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 10)
+	box.add_child(buttons)
+
+	if show_later:
+		var later_button := _make_update_popup_button("LATER", false)
+		later_button.pressed.connect(overlay.queue_free)
+		buttons.add_child(later_button)
+
+	var primary_button := _make_update_popup_button(primary_text, true)
+	if store_url.is_empty():
+		primary_button.pressed.connect(overlay.queue_free)
+	else:
+		primary_button.pressed.connect(_open_app_store.bind(store_url))
+		primary_button.pressed.connect(overlay.queue_free)
+	buttons.add_child(primary_button)
+
+
+func _make_update_popup_button(
+	button_text: String,
+	primary: bool
+) -> Button:
+	var button := Button.new()
+	button.text = button_text
+	button.custom_minimum_size.y = 48
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.focus_mode = Control.FOCUS_NONE
+	button.add_theme_font_size_override("font_size", 14)
+	button.add_theme_color_override("font_color", Color("#FFF7F0"))
+	button.add_theme_color_override("font_hover_color", Color.WHITE)
+
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color("#E30620") if primary else Color("#31060D")
+	normal.border_color = Color("#FFE36E")
+	normal.set_border_width_all(2)
+	normal.set_corner_radius_all(10)
+	button.add_theme_stylebox_override("normal", normal)
+
+	var hover := normal.duplicate() as StyleBoxFlat
+	hover.bg_color = Color("#FF1733") if primary else Color("#5B0715")
+	button.add_theme_stylebox_override("hover", hover)
+
+	var pressed := normal.duplicate() as StyleBoxFlat
+	pressed.bg_color = Color("#9E071A")
+	button.add_theme_stylebox_override("pressed", pressed)
+
+	return button
+
+
+func _open_app_store(store_url: String) -> void:
+	OS.shell_open(store_url)
