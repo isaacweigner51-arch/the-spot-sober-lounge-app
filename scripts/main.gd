@@ -29,6 +29,10 @@ var meetings_html: String = ""
 var meetings_data: Array = []
 var selected_meeting_day: String = "Sunday"
 var bg: TextureRect
+var background_music_player: AudioStreamPlayer
+var background_music_enabled := true
+var background_music_started := false
+
 
 func _ready() -> void:
 	shop_request = HTTPRequest.new()
@@ -512,7 +516,7 @@ func _show_opening_screen() -> void:
 
 	await door_tween.finished
 	splash.queue_free()
-
+	_start_background_music()
 	
 func _load_cached_live_data() -> void:
 	if FileAccess.file_exists("user://meetings_cache.json"):
@@ -3172,7 +3176,7 @@ func show_more() -> void:
 		"more",
 		"EXPLORE"
 	)
-
+	_add_background_music_control()
 	# Branded introduction card.
 	_section(
 		"MORE THAN A MEETING",
@@ -4152,3 +4156,119 @@ func _on_meetings_request_completed(_result: int, _response_code: int, _headers:
 func _select_meeting_day(day_name: String) -> void:
 	selected_meeting_day = day_name
 	show_meetings()
+
+func _setup_background_music() -> void:
+	if is_instance_valid(background_music_player):
+		return
+
+	var settings := ConfigFile.new()
+	if settings.load("user://audio_settings.cfg") == OK:
+		background_music_enabled = bool(
+			settings.get_value("audio", "music_enabled", true)
+		)
+
+	var music := load(
+		"res://assets/audio/spot_background.mp3"
+	) as AudioStreamMP3
+
+	if music == null:
+		push_warning("The Spot background music could not be loaded.")
+		return
+
+	music.loop = true
+	background_music_player = AudioStreamPlayer.new()
+	background_music_player.name = "BackgroundMusic"
+	background_music_player.stream = music
+	background_music_player.volume_db = -32.0
+	add_child(background_music_player)
+
+
+func _start_background_music() -> void:
+	_setup_background_music()
+
+	if not is_instance_valid(background_music_player):
+		return
+	if background_music_started:
+		return
+
+	background_music_started = true
+
+	if background_music_enabled:
+		background_music_player.volume_db = -40.0
+		background_music_player.play()
+		var fade := create_tween()
+		fade.tween_property(
+			background_music_player, "volume_db",-32.0, 1.5
+		)
+
+
+func _set_background_music_enabled(enabled: bool) -> void:
+	background_music_enabled = enabled
+
+	var settings := ConfigFile.new()
+	settings.set_value("audio", "music_enabled", enabled)
+	var save_error := settings.save("user://audio_settings.cfg")
+	if save_error != OK:
+		push_warning("Could not save the music preference.")
+
+	if not is_instance_valid(background_music_player):
+		return
+
+	if not enabled:
+		background_music_player.stop()
+	elif background_music_started:
+		background_music_player.volume_db = -32.0
+		background_music_player.play()
+
+
+func _notification(what: int) -> void:
+	if not is_instance_valid(background_music_player):
+		return
+
+	if what == NOTIFICATION_APPLICATION_PAUSED:
+		background_music_player.stream_paused = true
+	elif what == NOTIFICATION_APPLICATION_RESUMED:
+		background_music_player.stream_paused = false
+
+
+func _add_background_music_control() -> void:
+	_setup_background_music()
+
+	var music_panel := PanelContainer.new()
+	music_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	music_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var music_style := StyleBoxFlat.new()
+	music_style.bg_color = Color("#4A0612")
+	music_style.border_color = Color("#FFE36E")
+	music_style.set_border_width_all(1)
+	music_style.set_corner_radius_all(14)
+	music_style.content_margin_left = 14
+	music_style.content_margin_right = 14
+	music_style.content_margin_top = 8
+	music_style.content_margin_bottom = 8
+	music_panel.add_theme_stylebox_override("panel", music_style)
+	content.add_child(music_panel)
+
+	var music_toggle := CheckButton.new()
+	music_toggle.text = "Background music"
+	music_toggle.custom_minimum_size.y = 56
+	music_toggle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	music_toggle.focus_mode = Control.FOCUS_NONE
+	music_toggle.mouse_filter = Control.MOUSE_FILTER_PASS
+	music_toggle.add_theme_font_size_override("font_size", 18)
+	music_toggle.add_theme_color_override(
+		"font_color", Color("#FFF0B5")
+	)
+	music_toggle.add_theme_color_override(
+		"font_hover_color", Color.WHITE
+	)
+	music_toggle.add_theme_color_override(
+		"font_pressed_color", Color("#FFF0B5")
+	)
+	music_toggle.set_pressed_no_signal(background_music_enabled)
+	music_toggle.disabled = not is_instance_valid(
+		background_music_player
+	)
+	music_toggle.toggled.connect(_set_background_music_enabled)
+	music_panel.add_child(music_toggle)
