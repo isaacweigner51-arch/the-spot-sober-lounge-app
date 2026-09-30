@@ -4435,39 +4435,146 @@ func _show_update_available(
 	release_notes: String,
 	store_url: String
 ) -> void:
-	var dialog := ConfirmationDialog.new()
-	dialog.title = "Update available"
-	dialog.ok_button_text = (
-		"OPEN APP STORE"
-		if OS.get_name() == "iOS"
-		else "OPEN GOOGLE PLAY"
-	)
-	dialog.cancel_button_text = "LATER"
-
-
 	var message := "A newer version of The Spot Sober Lounge is available."
 	if not version_name.is_empty():
 		message = "Version %s is now available." % version_name
 	if not release_notes.is_empty():
 		message += "\n\n" + release_notes
 
-	dialog.dialog_text = message
-	add_child(dialog)
-	dialog.confirmed.connect(_open_app_store.bind(store_url))
-	dialog.confirmed.connect(dialog.queue_free)
-	dialog.canceled.connect(dialog.queue_free)
-	dialog.popup_centered(Vector2i(620, 360))
+	var store_button_text := (
+		"OPEN APP STORE"
+		if OS.get_name() == "iOS"
+		else "OPEN GOOGLE PLAY"
+	)
+
+	_show_branded_update_popup(
+		"UPDATE AVAILABLE",
+		message,
+		store_button_text,
+		store_url,
+		true
+	)
 
 
 func _show_update_message(title: String, message: String) -> void:
-	var dialog := AcceptDialog.new()
-	dialog.title = title
-	dialog.dialog_text = message
-	dialog.ok_button_text = "OK"
-	add_child(dialog)
-	dialog.confirmed.connect(dialog.queue_free)
-	dialog.canceled.connect(dialog.queue_free)
-	dialog.popup_centered(Vector2i(560, 280))
+	_show_branded_update_popup(title, message, "OK", "", false)
+
+
+func _show_branded_update_popup(
+	title_text: String,
+	message_text: String,
+	primary_text: String,
+	store_url: String,
+	show_later: bool
+) -> void:
+	var overlay := Control.new()
+	overlay.name = "UpdatePopup"
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.z_index = 2000
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(overlay)
+
+	var backdrop := ColorRect.new()
+	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	backdrop.color = Color(0, 0, 0, 0.72)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay.add_child(backdrop)
+
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.add_child(center)
+
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size.x = minf(
+		460.0,
+		get_viewport_rect().size.x - 40.0
+	)
+
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = Color("#4A0612")
+	panel_style.border_color = Color("#FFE36E")
+	panel_style.set_border_width_all(2)
+	panel_style.set_corner_radius_all(16)
+	panel_style.content_margin_left = 20
+	panel_style.content_margin_right = 20
+	panel_style.content_margin_top = 20
+	panel_style.content_margin_bottom = 20
+	panel.add_theme_stylebox_override("panel", panel_style)
+	center.add_child(panel)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 14)
+	panel.add_child(box)
+
+	var title := Label.new()
+	title.text = title_text
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.add_theme_font_size_override("font_size", 21)
+	title.add_theme_color_override("font_color", Color("#FFF0B5"))
+	box.add_child(title)
+
+	var divider := ColorRect.new()
+	divider.color = Color("#E30620")
+	divider.custom_minimum_size.y = 3
+	box.add_child(divider)
+
+	var message := Label.new()
+	message.text = message_text
+	message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	message.add_theme_font_size_override("font_size", 16)
+	message.add_theme_color_override("font_color", Color("#FFF7F0"))
+	box.add_child(message)
+
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 10)
+	box.add_child(buttons)
+
+	if show_later:
+		var later_button := _make_update_popup_button("LATER", false)
+		later_button.pressed.connect(overlay.queue_free)
+		buttons.add_child(later_button)
+
+	var primary_button := _make_update_popup_button(primary_text, true)
+	if store_url.is_empty():
+		primary_button.pressed.connect(overlay.queue_free)
+	else:
+		primary_button.pressed.connect(_open_app_store.bind(store_url))
+		primary_button.pressed.connect(overlay.queue_free)
+	buttons.add_child(primary_button)
+
+
+func _make_update_popup_button(
+	button_text: String,
+	primary: bool
+) -> Button:
+	var button := Button.new()
+	button.text = button_text
+	button.custom_minimum_size.y = 48
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.focus_mode = Control.FOCUS_NONE
+	button.add_theme_font_size_override("font_size", 14)
+	button.add_theme_color_override("font_color", Color("#FFF7F0"))
+	button.add_theme_color_override("font_hover_color", Color.WHITE)
+
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color("#E30620") if primary else Color("#31060D")
+	normal.border_color = Color("#FFE36E")
+	normal.set_border_width_all(2)
+	normal.set_corner_radius_all(10)
+	button.add_theme_stylebox_override("normal", normal)
+
+	var hover := normal.duplicate() as StyleBoxFlat
+	hover.bg_color = Color("#FF1733") if primary else Color("#5B0715")
+	button.add_theme_stylebox_override("hover", hover)
+
+	var pressed := normal.duplicate() as StyleBoxFlat
+	pressed.bg_color = Color("#9E071A")
+	button.add_theme_stylebox_override("pressed", pressed)
+
+	return button
 
 
 func _open_app_store(store_url: String) -> void:
